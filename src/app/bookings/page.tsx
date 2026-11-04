@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -14,27 +15,52 @@ type Booking = {
   endTime: string;
   guests: number;
   totalHours: number;
-  totalPrice: number;
+
+  // Current backend fields
+  price?: number;
+  deposit?: number;
+  totalAmount?: number;
+
+  // Backward compatibility with older records
+  totalPrice?: number;
   securityDeposit?: number;
+
   status: "pending" | "confirmed" | "completed" | "cancelled" | string;
 };
 
 type FilterType = "all" | "upcoming" | "completed" | "cancelled";
 
+function getBookingPrice(booking: Booking) {
+  if (booking.totalAmount !== undefined) {
+    return Number(booking.totalAmount) || 0;
+  }
+
+  if (booking.totalPrice !== undefined) {
+    return Number(booking.totalPrice) || 0;
+  }
+
+  return (
+    (Number(booking.price) || 0) +
+    (Number(booking.deposit ?? booking.securityDeposit) || 0)
+  );
+}
+
+function getBookingDeposit(booking: Booking) {
+  return Number(
+    booking.deposit ?? booking.securityDeposit ?? 0
+  ) || 0;
+}
+
 function getStatusStyle(status: string) {
   switch (status.toLowerCase()) {
     case "pending":
       return "bg-yellow-500/10 text-yellow-500";
-
     case "confirmed":
       return "bg-green-500/10 text-green-400";
-
     case "completed":
       return "bg-blue-500/10 text-blue-400";
-
     case "cancelled":
       return "bg-red-500/10 text-red-400";
-
     default:
       return "bg-surface-hover text-muted";
   }
@@ -44,16 +70,12 @@ function getStatusLabel(status: string) {
   switch (status.toLowerCase()) {
     case "pending":
       return "Pending";
-
     case "confirmed":
       return "Confirmed";
-
     case "completed":
       return "Completed";
-
     case "cancelled":
       return "Cancelled";
-
     default:
       return status;
   }
@@ -66,23 +88,15 @@ function isUpcoming(status: string) {
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [activeFilter, setActiveFilter] =
-    useState<FilterType>("all");
-
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [selectedBooking, setSelectedBooking] =
     useState<Booking | null>(null);
-
-  const [cancellingId, setCancellingId] =
-    useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchBookings() {
       try {
-        const response = await apiFetch(
-          "/api/bookings/my-bookings"
-        );
-
+        const response = await apiFetch("/api/bookings/my-bookings");
         const data = await response.json();
 
         if (!response.ok) {
@@ -113,23 +127,17 @@ export default function BookingsPage() {
   }, []);
 
   async function handleCancelBooking() {
-    if (
-      !selectedBooking ||
-      selectedBooking.status !== "pending"
-    ) {
+    if (!selectedBooking || selectedBooking.status !== "pending") {
       return;
     }
 
     const bookingId = selectedBooking._id;
-
     setCancellingId(bookingId);
 
     try {
       const response = await apiFetch(
         `/api/bookings/${bookingId}/cancel`,
-        {
-          method: "PATCH",
-        }
+        { method: "PATCH" }
       );
 
       const data = await response.json();
@@ -143,18 +151,13 @@ export default function BookingsPage() {
       setBookings((currentBookings) =>
         currentBookings.map((booking) =>
           booking._id === bookingId
-            ? {
-                ...booking,
-                status: "cancelled",
-              }
+            ? { ...booking, status: "cancelled" }
             : booking
         )
       );
 
       setSelectedBooking(null);
-
       setActiveFilter("cancelled");
-
       toast.success("Booking cancelled successfully.");
     } catch (error) {
       console.error("Failed to cancel booking:", error);
@@ -172,15 +175,12 @@ export default function BookingsPage() {
   const counts = useMemo(() => {
     return {
       all: bookings.length,
-
       upcoming: bookings.filter((booking) =>
         isUpcoming(booking.status)
       ).length,
-
       completed: bookings.filter(
         (booking) => booking.status === "completed"
       ).length,
-
       cancelled: bookings.filter(
         (booking) => booking.status === "cancelled"
       ).length,
@@ -193,18 +193,14 @@ export default function BookingsPage() {
         return bookings.filter((booking) =>
           isUpcoming(booking.status)
         );
-
       case "completed":
         return bookings.filter(
           (booking) => booking.status === "completed"
         );
-
       case "cancelled":
         return bookings.filter(
           (booking) => booking.status === "cancelled"
         );
-
-      case "all":
       default:
         return bookings;
     }
@@ -229,26 +225,10 @@ export default function BookingsPage() {
     label: string;
     count: number;
   }[] = [
-    {
-      key: "all",
-      label: "All",
-      count: counts.all,
-    },
-    {
-      key: "upcoming",
-      label: "Upcoming",
-      count: counts.upcoming,
-    },
-    {
-      key: "completed",
-      label: "Completed",
-      count: counts.completed,
-    },
-    {
-      key: "cancelled",
-      label: "Cancelled",
-      count: counts.cancelled,
-    },
+    { key: "all", label: "All", count: counts.all },
+    { key: "upcoming", label: "Upcoming", count: counts.upcoming },
+    { key: "completed", label: "Completed", count: counts.completed },
+    { key: "cancelled", label: "Cancelled", count: counts.cancelled },
   ];
 
   return (
@@ -279,16 +259,13 @@ export default function BookingsPage() {
             <div className="mb-8 overflow-x-auto">
               <div className="flex min-w-max gap-2 rounded-2xl border border-border bg-surface p-2">
                 {filterItems.map((item) => {
-                  const active =
-                    activeFilter === item.key;
+                  const active = activeFilter === item.key;
 
                   return (
                     <button
                       key={item.key}
                       type="button"
-                      onClick={() =>
-                        setActiveFilter(item.key)
-                      }
+                      onClick={() => setActiveFilter(item.key)}
                       className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all sm:px-5 ${
                         active
                           ? "bg-primary text-primary-foreground shadow-sm"
@@ -296,12 +273,9 @@ export default function BookingsPage() {
                       }`}
                     >
                       <span>{item.label}</span>
-
                       <span
                         className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold ${
-                          active
-                            ? "bg-white/20"
-                            : "bg-surface-hover"
+                          active ? "bg-white/20" : "bg-surface-hover"
                         }`}
                       >
                         {item.count}
@@ -380,8 +354,9 @@ export default function BookingsPage() {
                 {/* Booking Cards */}
                 <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
                   {filteredBookings.map((booking) => {
-                    const cancelled =
-                      booking.status === "cancelled";
+                    const cancelled = booking.status === "cancelled";
+                    const bookingPrice = getBookingPrice(booking);
+                    const bookingDeposit = getBookingDeposit(booking);
 
                     return (
                       <article
@@ -409,9 +384,7 @@ export default function BookingsPage() {
                               booking.status
                             )}`}
                           >
-                            {getStatusLabel(
-                              booking.status
-                            )}
+                            {getStatusLabel(booking.status)}
                           </span>
                         </div>
 
@@ -423,7 +396,6 @@ export default function BookingsPage() {
                             <p className="text-[11px] uppercase tracking-wider text-muted sm:text-xs">
                               Date
                             </p>
-
                             <p className="mt-1 text-sm font-semibold sm:text-base">
                               {booking.date}
                             </p>
@@ -433,10 +405,8 @@ export default function BookingsPage() {
                             <p className="text-[11px] uppercase tracking-wider text-muted sm:text-xs">
                               Time
                             </p>
-
                             <p className="mt-1 text-sm font-semibold sm:text-base">
-                              {booking.startTime} -{" "}
-                              {booking.endTime}
+                              {booking.startTime} - {booking.endTime}
                             </p>
                           </div>
 
@@ -444,12 +414,8 @@ export default function BookingsPage() {
                             <p className="text-[11px] uppercase tracking-wider text-muted sm:text-xs">
                               Duration
                             </p>
-
                             <p className="mt-1 text-sm font-semibold sm:text-base">
-                              {Number(
-                                booking.totalHours || 0
-                              ).toFixed(2)}{" "}
-                              hours
+                              {Number(booking.totalHours || 0).toFixed(2)} hours
                             </p>
                           </div>
 
@@ -457,7 +423,6 @@ export default function BookingsPage() {
                             <p className="text-[11px] uppercase tracking-wider text-muted sm:text-xs">
                               Guests
                             </p>
-
                             <p className="mt-1 text-sm font-semibold sm:text-base">
                               {booking.guests}
                             </p>
@@ -471,25 +436,18 @@ export default function BookingsPage() {
                           </span>
 
                           <span className="shrink-0 text-xl font-bold text-primary sm:text-2xl">
-                            ৳
-                            {Number(
-                              booking.totalPrice || 0
-                            ).toLocaleString()}
+                            ৳{bookingPrice.toLocaleString()}
                           </span>
                         </div>
 
-                        {booking.securityDeposit !==
-                          undefined && (
+                        {bookingDeposit > 0 && (
                           <div className="mt-3 flex items-center justify-between gap-4">
                             <span className="text-sm text-muted">
                               Security deposit
                             </span>
 
                             <span className="text-sm font-semibold">
-                              ৳
-                              {Number(
-                                booking.securityDeposit
-                              ).toLocaleString()}
+                              ৳{bookingDeposit.toLocaleString()}
                             </span>
                           </div>
                         )}
@@ -498,11 +456,7 @@ export default function BookingsPage() {
                         {booking.status === "pending" && (
                           <button
                             type="button"
-                            onClick={() =>
-                              setSelectedBooking(
-                                booking
-                              )
-                            }
+                            onClick={() => setSelectedBooking(booking)}
                             className="mt-5 flex min-h-11 w-full items-center justify-center rounded-full border border-danger/40 px-4 py-2.5 text-sm font-bold text-danger transition-colors hover:bg-danger/10"
                           >
                             Cancel Booking
@@ -547,9 +501,7 @@ export default function BookingsPage() {
           >
             <div
               className="my-auto w-full max-w-md rounded-2xl border border-border bg-surface p-5 shadow-2xl sm:p-6"
-              onClick={(event) =>
-                event.stopPropagation()
-              }
+              onClick={(event) => event.stopPropagation()}
             >
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-danger/10 text-lg font-bold text-danger sm:h-12 sm:w-12 sm:text-xl">
                 !
@@ -560,8 +512,7 @@ export default function BookingsPage() {
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-muted">
-                Are you sure you want to cancel your
-                booking for{" "}
+                Are you sure you want to cancel your booking for{" "}
                 <span className="font-semibold text-foreground">
                   {selectedBooking.studioName}
                 </span>
@@ -570,36 +521,23 @@ export default function BookingsPage() {
 
               <div className="mt-5 rounded-xl border border-border bg-surface-soft p-4 sm:mt-6">
                 <div className="flex items-start justify-between gap-4 text-sm">
-                  <span className="text-muted">
-                    Date
-                  </span>
-
+                  <span className="text-muted">Date</span>
                   <span className="text-right font-semibold">
                     {selectedBooking.date}
                   </span>
                 </div>
 
                 <div className="mt-3 flex items-start justify-between gap-4 text-sm">
-                  <span className="text-muted">
-                    Time
-                  </span>
-
+                  <span className="text-muted">Time</span>
                   <span className="text-right font-semibold">
-                    {selectedBooking.startTime} -{" "}
-                    {selectedBooking.endTime}
+                    {selectedBooking.startTime} - {selectedBooking.endTime}
                   </span>
                 </div>
 
                 <div className="mt-3 flex items-start justify-between gap-4 text-sm">
-                  <span className="text-muted">
-                    Total
-                  </span>
-
+                  <span className="text-muted">Total</span>
                   <span className="text-right font-semibold text-primary">
-                    ৳
-                    {Number(
-                      selectedBooking.totalPrice || 0
-                    ).toLocaleString()}
+                    ৳{getBookingPrice(selectedBooking).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -607,9 +545,7 @@ export default function BookingsPage() {
               <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button
                   type="button"
-                  onClick={() =>
-                    setSelectedBooking(null)
-                  }
+                  onClick={() => setSelectedBooking(null)}
                   disabled={Boolean(cancellingId)}
                   className="min-h-11 w-full rounded-full border border-border px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
@@ -622,9 +558,7 @@ export default function BookingsPage() {
                   disabled={Boolean(cancellingId)}
                   className="min-h-11 w-full rounded-full bg-danger px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-danger/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
-                  {cancellingId
-                    ? "Cancelling..."
-                    : "Yes, Cancel"}
+                  {cancellingId ? "Cancelling..." : "Yes, Cancel"}
                 </button>
               </div>
             </div>

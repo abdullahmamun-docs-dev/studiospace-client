@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -7,14 +8,18 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 
-const DEFAULT_MAX_CAPACITY = 5;
+const DEFAULT_MAX_CAPACITY = 10;
 
 type Studio = {
   _id: string;
   name: string;
   category: string;
   location: string;
-  pricePerHour: number;
+
+  // Support both possible backend field names
+  pricePerHour?: number;
+  price?: number;
+
   securityDeposit?: number;
   maxCapacity?: number;
   image?: string;
@@ -64,21 +69,16 @@ export default function BookStudioPage() {
       try {
         setLoading(true);
 
-        const response = await apiFetch(
-          `/api/studios/${studioId}`,
-          {
-            cache: "no-store",
-          }
-        );
+        const response = await apiFetch(`/api/studios/${studioId}`, {
+          cache: "no-store",
+        });
 
         let data: Studio | { message?: string } | null = null;
 
         try {
           data = await response.json();
         } catch {
-          throw new Error(
-            "The server returned an invalid response."
-          );
+          throw new Error("The server returned an invalid response.");
         }
 
         if (!response.ok) {
@@ -138,13 +138,8 @@ export default function BookStudioPage() {
       return 0;
     }
 
-    const [startHour, startMinute] = startTime
-      .split(":")
-      .map(Number);
-
-    const [endHour, endMinute] = endTime
-      .split(":")
-      .map(Number);
+    const [startHour, startMinute] = startTime.split(":").map(Number);
+    const [endHour, endMinute] = endTime.split(":").map(Number);
 
     const start = startHour * 60 + startMinute;
     const end = endHour * 60 + endMinute;
@@ -165,7 +160,11 @@ export default function BookStudioPage() {
   | Price calculation
   |--------------------------------------------------------------------------
   */
-  const hourlyRate = Number(studio?.pricePerHour || 0);
+
+  // Supports both pricePerHour and price from backend.
+  const hourlyRate = Number(
+    studio?.pricePerHour ?? studio?.price ?? 0
+  );
 
   const estimatedPrice =
     duration > 0 ? duration * hourlyRate : 0;
@@ -238,6 +237,13 @@ export default function BookStudioPage() {
       return;
     }
 
+    if (hourlyRate <= 0) {
+      toast.error(
+        "This studio does not have a valid hourly price."
+      );
+      return;
+    }
+
     setBookingLoading(true);
 
     try {
@@ -253,6 +259,12 @@ export default function BookStudioPage() {
           startTime,
           endTime,
           guests: guestCount,
+
+          // Send calculated values as well.
+          totalHours: duration,
+          price: estimatedPrice,
+          deposit: securityDeposit,
+          totalAmount,
         }),
       });
 
@@ -297,7 +309,9 @@ export default function BookStudioPage() {
   }
 
   /*
+  |--------------------------------------------------------------------------
   | Loading state
+  |--------------------------------------------------------------------------
   */
   if (loading) {
     return (
@@ -322,7 +336,9 @@ export default function BookStudioPage() {
   }
 
   /*
+  |--------------------------------------------------------------------------
   | Studio not found
+  |--------------------------------------------------------------------------
   */
   if (!studio) {
     return (
@@ -660,7 +676,8 @@ export default function BookStudioPage() {
                   bookingLoading ||
                   !validGuestCount ||
                   duration <= 0 ||
-                  !date
+                  !date ||
+                  hourlyRate <= 0
                 }
                 className="studio-primary-button min-h-12 w-full disabled:cursor-not-allowed disabled:opacity-50"
               >
