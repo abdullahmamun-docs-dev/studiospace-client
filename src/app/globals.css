@@ -1,26 +1,208 @@
+
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0b0b0c;
+  --foreground: #f5f3ef;
+
+  --surface: #121214;
+  --surface-soft: #19191c;
+  --surface-hover: #202024;
+
+  --border: #29292d;
+  --border-soft: #222226;
+
+  --primary: #e5a84b;
+  --primary-hover: #f0b85c;
+  --primary-foreground: #111111;
+
+  --muted: #a1a1aa;
+  --muted-dark: #71717a;
+
+  --success: #4ade80;
+  --danger: #f87171;
 }
 
+/* Light theme */
+html.light {
+  --background: #f7f5f0;
+  --foreground: #18181b;
+
+  --surface: #ffffff;
+  --surface-soft: #efede8;
+  --surface-hover: #e5e2dc;
+
+  --border: #d9d6cf;
+  --border-soft: #e5e2dc;
+
+  --primary: #c98220;
+  --primary-hover: #b87317;
+  --primary-foreground: #ffffff;
+
+  --muted: #66656b;
+  --muted-dark: #52525b;
+
+  --success: #16a34a;
+  --danger: #dc2626;
+}
+
+/* Tailwind theme tokens */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-surface-hover: var(--surface-hover);
+
+  --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-dark: var(--muted-dark);
+
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+
+  --font-sans: Arial, Helvetica, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Global reset */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
 }
 
 body {
+  margin: 0;
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
+/* Selection */
+::selection {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-dark);
+}
+
+/* Reusable StudioSpace utilities */
+.container-studio {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.section-space {
+  padding-block: 5rem;
+}
+
+.section-heading {
+  max-width: 720px;
+}
+
+.studio-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.studio-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 0.75rem 1.5rem;
+  font-weight: 700;
+  transition:
+    transform 200ms ease,
+    background-color 200ms ease;
+}
+
+.studio-primary-button:hover {
+  transform: translateY(-2px);
+  background: var(--primary-hover);
+}
+
+.studio-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  transition: background-color 200ms ease;
+}
+
+.studio-secondary-button:hover {
+  background: var(--surface-hover);
+}
+
+.studio-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  transition:
+    transform 300ms ease,
+    border-color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.studio-card:hover {
+  transform: translateY(-4px);
+  border-color: #3a3a40;
+  box-shadow: 0 20px 50px rgb(0 0 0 / 25%);
+}
+
+/* Accessibility */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .section-space {
+    padding-block: 3.5rem;
+  }
+
+  .container-studio {
+    padding-inline: 1rem;
+  }
 }
