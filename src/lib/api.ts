@@ -4,7 +4,10 @@ const SERVER_API_URL =
 
 const API_URL =
   typeof window !== "undefined"
-    ? ""
+    ? window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1"
+      ? SERVER_API_URL
+      : ""
     : SERVER_API_URL;
 
 export async function apiFetch(
