@@ -18,17 +18,28 @@ type Studio = {
 };
 
 async function getStudio(id: string): Promise<Studio | null> {
-  const response = await apiFetch(`/api/studios/${id}`, {
-    cache: "no-store",
-  });
+  try {
+    const response = await apiFetch(`/api/studios/${id}`, {
+      cache: "no-store",
+    });
 
-  if (!response.ok) {
-    return null;
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch studio: ${response.status}`
+      );
+    }
+
+    const studio: Studio = await response.json();
+
+    return studio ?? null;
+  } catch (error) {
+    console.error("Failed to load studio:", error);
+    throw error;
   }
-
-  const studio: Studio = await response.json();
-
-  return studio ?? null;
 }
 
 type StudioDetailsPageProps = {
