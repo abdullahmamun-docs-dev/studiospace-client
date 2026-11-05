@@ -278,8 +278,8 @@ For production deployment:
 ### Email/Password Login
 
 ```text
-Email: YOUR_DEMO_EMAIL
-Password: YOUR_DEMO_PASSWORD
+Email: abdullah7776@gmail.com
+Password: abdullah7776A
 ```
 
 > Replace `YOUR_DEMO_EMAIL` and `YOUR_DEMO_PASSWORD` with the actual demo account credentials before submitting the assignment.
