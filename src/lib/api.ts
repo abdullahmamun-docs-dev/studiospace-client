@@ -1,7 +1,5 @@
 const API_URL =
-  typeof window !== "undefined"
-    ? window.location.origin
-    : "http://localhost:3000";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export async function apiFetch(
   endpoint: string,
