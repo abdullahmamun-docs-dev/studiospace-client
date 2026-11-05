@@ -260,7 +260,7 @@ export default function Navbar() {
               </Link>
 
               <Link
-                href="/register"
+                href="/auth/signup"
                 className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover"
               >
                 Register
@@ -304,8 +304,8 @@ export default function Navbar() {
               </Link>
 
               <Link
-                href="/register"
-                className={mobileLinkClass("/register")}
+                href="/auth/signup"
+                className={mobileLinkClass("/auth/signup")}
               >
                 Register
               </Link>
