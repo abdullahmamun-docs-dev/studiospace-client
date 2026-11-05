@@ -4,7 +4,7 @@ StudioSpace is a peer-to-peer creative studio booking platform where creators ca
 
 ## Live Project
 
-- **Live Client:** Add your deployed client URL here
+- **Live Client:** https://studiospace-client-lemon.vercel.app
 - **Client Repository:** https://github.com/abdullahmamun-docs-dev/studiospace-client
 - **Server Repository:** https://github.com/abdullahmamun-docs-dev/studiospace-server
 
@@ -13,7 +13,7 @@ StudioSpace is a peer-to-peer creative studio booking platform where creators ca
 - User registration and login with email/password
 - Google social authentication
 - Secure authentication with Better Auth
-- JWT-based API authentication
+- JWT-based authentication for protected API requests
 - HTTP-only authentication cookies
 - Browse available creative studios
 - Search and filter studios by category
@@ -21,18 +21,19 @@ StudioSpace is a peer-to-peer creative studio booking platform where creators ca
 - Create and manage studio listings
 - Edit and delete owned studios
 - Book studios with date, time, and guest information
-- Booking price and security deposit calculation
+- Automatic booking price and security deposit calculation
 - Booking overlap prevention
 - Booking status management
-- Users can view and cancel their pending bookings
+- Users can view and cancel their eligible bookings
 - Hosts can confirm, reject, and complete bookings
 - Dashboard with booking and studio statistics
 - Responsive design for desktop, tablet, and mobile
 - Loading and empty states
 - Toast notifications
-- Confirmation modals
+- Custom confirmation modals
 - Custom 404 page
 - Protected routes and protected API endpoints
+- Host ownership and booking authorization checks
 
 ## Technology Stack
 
@@ -82,8 +83,8 @@ Make sure you have the following installed:
 
 - Node.js
 - npm
-- MongoDB database
 - Git
+- MongoDB database
 
 ### Client Setup
 
@@ -184,7 +185,7 @@ Supported authentication methods:
 
 Protected API operations require an authenticated user.
 
-JWT authentication is used for securing API access, and authentication credentials are handled using secure cookies.
+Authentication sessions are handled using secure HTTP-only cookies, while JWT functionality is used to protect API access where required.
 
 ## Booking System
 
@@ -194,8 +195,10 @@ Users can:
 2. Choose a booking date
 3. Select start and end times
 4. Enter the number of guests
-5. Review the booking price
+5. Review the booking price and security deposit
 6. Submit the booking request
+7. View their bookings
+8. Cancel eligible bookings
 
 The server validates:
 
@@ -205,7 +208,8 @@ The server validates:
 - Booking time
 - Guest capacity
 - Booking overlap
-- Studio ownership
+- Studio ownership and authorization
+- Booking ownership and authorization
 
 Only appropriate booking statuses can be cancelled or updated.
 
@@ -228,9 +232,10 @@ Users cannot modify or delete another host's studio.
 The application includes several security measures:
 
 - Protected API endpoints
-- JWT authentication
+- JWT-based API authentication
 - Better Auth session management
-- Authentication cookies
+- HTTP-only authentication cookies
+- Secure cookie configuration
 - Server-side authorization checks
 - Studio ownership verification
 - Booking ownership verification
@@ -238,6 +243,7 @@ The application includes several security measures:
 - Booking overlap prevention
 - MongoDB indexes for efficient queries
 - CORS configuration
+- Protected production authentication routes
 
 ## Production Build
 
@@ -255,11 +261,32 @@ npm run start
 
 ## Deployment
 
-The client can be deployed to platforms such as Vercel.
+The client is deployed using Vercel.
 
-The server can be deployed to a Node.js-compatible hosting platform.
+The server is deployed using a Node.js-compatible hosting platform.
 
-Before deployment, update environment variables with the production values and configure the production client URL in the server's CORS and authentication settings.
+For production deployment:
+
+1. Configure the required environment variables.
+2. Configure the production client URL in the server CORS settings.
+3. Configure the production URL in Better Auth trusted origins.
+4. Configure Google OAuth production redirect URLs.
+5. Build and deploy the client and server.
+
+## Demo / Examiner Credentials
+
+### Email/Password Login
+
+```text
+Email: YOUR_DEMO_EMAIL
+Password: YOUR_DEMO_PASSWORD
+```
+
+> Replace `YOUR_DEMO_EMAIL` and `YOUR_DEMO_PASSWORD` with the actual demo account credentials before submitting the assignment.
+
+### Google Login
+
+Google login is also available from the login page.
 
 ## Author
 
