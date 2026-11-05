@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -82,7 +83,10 @@ export default function HostBookingsPage() {
           : data.bookings || []
       );
     } catch (error) {
-      console.error("Failed to load host bookings:", error);
+      console.error(
+        "Failed to load host bookings:",
+        error
+      );
 
       toast.error(
         error instanceof Error
@@ -295,6 +299,13 @@ export default function HostBookingsPage() {
     },
   ];
 
+  const currentFilterLabel =
+    activeFilter === "all"
+      ? "All reservations"
+      : `${getStatusLabel(
+          activeFilter as BookingStatus
+        )} reservations`;
+
   return (
     <AuthGuard>
       <main className="min-h-screen bg-background text-foreground">
@@ -328,6 +339,10 @@ export default function HostBookingsPage() {
                 <p className="mt-2 text-3xl font-bold">
                   {counts.all}
                 </p>
+
+                <p className="mt-1 text-xs text-muted">
+                  All customer reservations
+                </p>
               </div>
 
               <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-5">
@@ -337,6 +352,10 @@ export default function HostBookingsPage() {
 
                 <p className="mt-2 text-3xl font-bold text-yellow-600">
                   {counts.pending}
+                </p>
+
+                <p className="mt-1 text-xs text-muted">
+                  Need your attention
                 </p>
               </div>
 
@@ -348,6 +367,10 @@ export default function HostBookingsPage() {
                 <p className="mt-2 text-3xl font-bold text-green-600">
                   {counts.confirmed}
                 </p>
+
+                <p className="mt-1 text-xs text-muted">
+                  Upcoming approved bookings
+                </p>
               </div>
 
               <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
@@ -358,10 +381,14 @@ export default function HostBookingsPage() {
                 <p className="mt-2 text-3xl font-bold text-blue-600">
                   {counts.completed}
                 </p>
+
+                <p className="mt-1 text-xs text-muted">
+                  Finished studio sessions
+                </p>
               </div>
             </div>
 
-            {/* Filter + Refresh */}
+            {/* Booking Management */}
             <div className="mt-8">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -372,6 +399,16 @@ export default function HostBookingsPage() {
                   <h2 className="mt-1 text-2xl font-bold sm:text-3xl">
                     Your reservations
                   </h2>
+
+                  {counts.pending > 0 && (
+                    <p className="mt-2 text-sm text-yellow-600">
+                      You have {counts.pending} pending{" "}
+                      {counts.pending === 1
+                        ? "request"
+                        : "requests"}{" "}
+                      waiting for approval.
+                    </p>
+                  )}
                 </div>
 
                 <button
@@ -400,6 +437,7 @@ export default function HostBookingsPage() {
                         onClick={() =>
                           setActiveFilter(item.key)
                         }
+                        aria-pressed={active}
                         className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition sm:px-5 ${
                           active
                             ? "bg-primary text-primary-foreground shadow-sm"
@@ -427,10 +465,29 @@ export default function HostBookingsPage() {
             {/* Content */}
             <div className="mt-6">
               {loading ? (
-                <div className="rounded-2xl border border-border bg-surface p-10 text-center">
-                  <p className="text-sm text-muted">
-                    Loading bookings...
-                  </p>
+                <div className="grid gap-5">
+                  {[1, 2].map((item) => (
+                    <div
+                      key={item}
+                      className="animate-pulse rounded-2xl border border-border bg-surface p-6"
+                    >
+                      <div className="h-5 w-40 rounded bg-surface-hover" />
+
+                      <div className="mt-4 h-7 w-64 rounded bg-surface-hover" />
+
+                      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        {[1, 2, 3, 4].map(
+                          (column) => (
+                            <div key={column}>
+                              <div className="h-3 w-20 rounded bg-surface-hover" />
+                              <div className="mt-3 h-5 w-28 rounded bg-surface-hover" />
+                              <div className="mt-2 h-4 w-36 rounded bg-surface-hover" />
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : filteredBookings.length === 0 ? (
                 <div className="rounded-2xl border border-border bg-surface px-5 py-12 text-center sm:px-8 sm:py-16">
@@ -467,18 +524,27 @@ export default function HostBookingsPage() {
                       ? "Rejected or cancelled bookings will appear here."
                       : "When customers book one of your studios, their reservations will appear here."}
                   </p>
+
+                  {activeFilter !== "all" &&
+                    counts.all > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveFilter("all")
+                        }
+                        className="mt-6 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition hover:opacity-90"
+                      >
+                        View all bookings
+                      </button>
+                    )}
                 </div>
               ) : (
                 <>
                   {/* Section heading */}
-                  <div className="mb-5 flex items-end justify-between">
+                  <div className="mb-5 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
-                        {activeFilter === "all"
-                          ? "All reservations"
-                          : `${getStatusLabel(
-                              activeFilter as BookingStatus
-                            )} reservations`}
+                        {currentFilterLabel}
                       </p>
 
                       <h3 className="mt-1 text-xl font-bold sm:text-2xl">
@@ -488,6 +554,18 @@ export default function HostBookingsPage() {
                           : "bookings"}
                       </h3>
                     </div>
+
+                    {activeFilter !== "all" && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setActiveFilter("all")
+                        }
+                        className="w-fit text-sm font-semibold text-primary hover:underline"
+                      >
+                        View all
+                      </button>
+                    )}
                   </div>
 
                   {/* Booking Cards */}
@@ -505,6 +583,9 @@ export default function HostBookingsPage() {
 
                       const isCancelled =
                         booking.status === "cancelled";
+
+                      const isProcessing =
+                        processingId === booking._id;
 
                       return (
                         <article
@@ -665,8 +746,9 @@ export default function HostBookingsPage() {
                                   <button
                                     type="button"
                                     disabled={
-                                      processingId ===
-                                      booking._id
+                                      isProcessing ||
+                                      processingId !==
+                                        null
                                     }
                                     onClick={() =>
                                       setSelectedAction({
@@ -678,14 +760,19 @@ export default function HostBookingsPage() {
                                     }
                                     className="min-h-11 rounded-xl bg-green-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
-                                    Confirm
+                                    {isProcessing &&
+                                    selectedAction?.action ===
+                                      "confirm"
+                                      ? "Confirming..."
+                                      : "Confirm"}
                                   </button>
 
                                   <button
                                     type="button"
                                     disabled={
-                                      processingId ===
-                                      booking._id
+                                      isProcessing ||
+                                      processingId !==
+                                        null
                                     }
                                     onClick={() =>
                                       setSelectedAction({
@@ -697,7 +784,11 @@ export default function HostBookingsPage() {
                                     }
                                     className="min-h-11 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                                   >
-                                    Reject
+                                    {isProcessing &&
+                                    selectedAction?.action ===
+                                      "reject"
+                                      ? "Rejecting..."
+                                      : "Reject"}
                                   </button>
                                 </>
                               )}
@@ -707,8 +798,9 @@ export default function HostBookingsPage() {
                                 <button
                                   type="button"
                                   disabled={
-                                    processingId ===
-                                    booking._id
+                                    isProcessing ||
+                                    processingId !==
+                                      null
                                   }
                                   onClick={() =>
                                     setSelectedAction({
@@ -720,7 +812,11 @@ export default function HostBookingsPage() {
                                   }
                                   className="min-h-11 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                  Complete Booking
+                                  {isProcessing &&
+                                  selectedAction?.action ===
+                                    "complete"
+                                    ? "Completing..."
+                                    : "Complete Booking"}
                                 </button>
                               )}
 
@@ -783,9 +879,7 @@ export default function HostBookingsPage() {
               <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <button
                   type="button"
-                  disabled={
-                    processingId !== null
-                  }
+                  disabled={processingId !== null}
                   onClick={() =>
                     setSelectedAction(null)
                   }
@@ -796,9 +890,7 @@ export default function HostBookingsPage() {
 
                 <button
                   type="button"
-                  disabled={
-                    processingId !== null
-                  }
+                  disabled={processingId !== null}
                   onClick={() =>
                     handleBookingAction(
                       selectedAction.bookingId,
