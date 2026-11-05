@@ -10,30 +10,22 @@ import { apiFetch } from "@/lib/api";
 type Booking = {
   _id: string;
   id?: string;
-
   studioId?: string;
   studioName?: string;
   studioTitle?: string;
   title?: string;
-
   date: string;
   startTime: string;
   endTime: string;
-
   guests?: number;
   guestCount?: number;
-
   status: string;
-
   totalPrice?: number;
   totalAmount?: number;
   price?: number;
-
   deposit?: number;
   depositAmount?: number;
-
   location?: string;
-
   createdAt?: string;
 };
 
@@ -44,12 +36,7 @@ function getBookingId(booking: Booking) {
 }
 
 function getBookingName(booking: Booking) {
-  return (
-    booking.studioName ||
-    booking.studioTitle ||
-    booking.title ||
-    "Studio"
-  );
+  return booking.studioName || booking.studioTitle || booking.title || "Studio";
 }
 
 function getBookingGuests(booking: Booking) {
@@ -57,12 +44,7 @@ function getBookingGuests(booking: Booking) {
 }
 
 function getBookingPrice(booking: Booking) {
-  return (
-    booking.totalPrice ??
-    booking.totalAmount ??
-    booking.price ??
-    0
-  );
+  return booking.totalPrice ?? booking.totalAmount ?? booking.price ?? 0;
 }
 
 function getBookingDeposit(booking: Booking) {
@@ -75,7 +57,6 @@ function getBookingStatus(booking: Booking) {
 
 function isUpcoming(booking: Booking) {
   const status = getBookingStatus(booking);
-
   return status === "pending" || status === "confirmed";
 }
 
@@ -94,9 +75,7 @@ function isCancelled(booking: Booking) {
 }
 
 function formatDate(date: string) {
-  if (!date) {
-    return "Date unavailable";
-  }
+  if (!date) return "Date unavailable";
 
   const parsed = new Date(`${date}T00:00:00`);
 
@@ -114,27 +93,16 @@ function formatDate(date: string) {
 function formatStatus(status: string) {
   const normalized = status.toLowerCase();
 
-  if (normalized === "confirmed") {
-    return "Confirmed";
-  }
-
-  if (normalized === "pending") {
-    return "Pending";
-  }
-
-  if (normalized === "completed") {
-    return "Completed";
-  }
+  if (normalized === "confirmed") return "Confirmed";
+  if (normalized === "pending") return "Pending";
+  if (normalized === "completed") return "Completed";
+  if (normalized === "rejected") return "Rejected";
 
   if (
     normalized === "cancelled" ||
     normalized === "canceled"
   ) {
     return "Cancelled";
-  }
-
-  if (normalized === "rejected") {
-    return "Rejected";
   }
 
   return status;
@@ -177,11 +145,6 @@ export default function BookingsPage() {
     useState<string | null>(null);
 
   const [isCancelling, setIsCancelling] = useState(false);
-
-  /*
-   * IMPORTANT:
-   * All React Hooks are above the conditional return.
-   */
 
   useEffect(() => {
     let cancelled = false;
@@ -273,9 +236,7 @@ export default function BookingsPage() {
   }, [bookings, activeFilter]);
 
   async function handleCancelBooking() {
-    if (!cancellingId) {
-      return;
-    }
+    if (!cancellingId) return;
 
     setIsCancelling(true);
 
@@ -292,7 +253,7 @@ export default function BookingsPage() {
       try {
         data = await response.json();
       } catch {
-        // Successful response may not contain JSON.
+        // Response may not contain JSON.
       }
 
       if (!response.ok) {
@@ -307,12 +268,8 @@ export default function BookingsPage() {
         throw new Error(message);
       }
 
-      toast.success("Booking cancelled successfully.");
-
       setBookings((currentBookings) => {
-        if (!currentBookings) {
-          return currentBookings;
-        }
+        if (!currentBookings) return currentBookings;
 
         return currentBookings.map((booking) => {
           if (getBookingId(booking) !== cancellingId) {
@@ -327,6 +284,8 @@ export default function BookingsPage() {
       });
 
       setCancellingId(null);
+
+      toast.success("Booking cancelled successfully.");
     } catch (error) {
       console.error("Failed to cancel booking:", error);
 
@@ -339,11 +298,6 @@ export default function BookingsPage() {
       setIsCancelling(false);
     }
   }
-
-  /*
-   * Loading UI
-   * No Hook is called after this point.
-   */
 
   if (bookings === null) {
     return (
@@ -364,7 +318,6 @@ export default function BookingsPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-primary">
             StudioSpace
@@ -375,8 +328,7 @@ export default function BookingsPage() {
           </h1>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
-            View and manage all your studio booking requests in
-            one place.
+            View and manage all your studio booking requests in one place.
           </p>
         </div>
 
@@ -386,17 +338,13 @@ export default function BookingsPage() {
             <p className="text-sm font-medium text-muted">
               All Bookings
             </p>
-
-            <p className="mt-2 text-3xl font-black">
-              {stats.all}
-            </p>
+            <p className="mt-2 text-3xl font-black">{stats.all}</p>
           </div>
 
           <div className="rounded-2xl border border-border bg-surface p-5">
             <p className="text-sm font-medium text-muted">
               Upcoming
             </p>
-
             <p className="mt-2 text-3xl font-black">
               {stats.upcoming}
             </p>
@@ -406,7 +354,6 @@ export default function BookingsPage() {
             <p className="text-sm font-medium text-muted">
               Completed
             </p>
-
             <p className="mt-2 text-3xl font-black">
               {stats.completed}
             </p>
@@ -416,7 +363,6 @@ export default function BookingsPage() {
             <p className="text-sm font-medium text-muted">
               Cancelled
             </p>
-
             <p className="mt-2 text-3xl font-black">
               {stats.cancelled}
             </p>
@@ -462,7 +408,7 @@ export default function BookingsPage() {
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
               {activeFilter === "all"
                 ? "You haven't made any studio bookings yet."
-                : "There are no bookings in this category."}
+                : `There are no ${activeFilter} bookings right now.`}
             </p>
 
             <button
@@ -474,12 +420,12 @@ export default function BookingsPage() {
             </button>
           </div>
         ) : (
-          /* Booking List */
           <div className="space-y-5">
             {filteredBookings.map((booking) => {
               const bookingId = getBookingId(booking);
               const status = getBookingStatus(booking);
 
+              // Only pending bookings can be cancelled.
               const canCancel = status === "pending";
 
               return (
@@ -509,7 +455,6 @@ export default function BookingsPage() {
                             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                               Date
                             </p>
-
                             <p className="mt-1 font-semibold">
                               {formatDate(booking.date)}
                             </p>
@@ -519,10 +464,8 @@ export default function BookingsPage() {
                             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                               Time
                             </p>
-
                             <p className="mt-1 font-semibold">
-                              {booking.startTime} -{" "}
-                              {booking.endTime}
+                              {booking.startTime} - {booking.endTime}
                             </p>
                           </div>
 
@@ -530,7 +473,6 @@ export default function BookingsPage() {
                             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                               Guests
                             </p>
-
                             <p className="mt-1 font-semibold">
                               {getBookingGuests(booking)}
                             </p>
@@ -540,12 +482,8 @@ export default function BookingsPage() {
                             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                               Total
                             </p>
-
                             <p className="mt-1 font-semibold">
-                              ৳
-                              {getBookingPrice(
-                                booking
-                              ).toLocaleString()}
+                              ৳{getBookingPrice(booking).toLocaleString()}
                             </p>
                           </div>
                         </div>
@@ -588,17 +526,11 @@ export default function BookingsPage() {
 
                     <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 border-t border-border pt-4 text-sm text-muted">
                       <span>
-                        Total: ৳
-                        {getBookingPrice(
-                          booking
-                        ).toLocaleString()}
+                        Total: ৳{getBookingPrice(booking).toLocaleString()}
                       </span>
 
                       <span>
-                        Deposit: ৳
-                        {getBookingDeposit(
-                          booking
-                        ).toLocaleString()}
+                        Deposit: ৳{getBookingDeposit(booking).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -638,9 +570,7 @@ export default function BookingsPage() {
                 onClick={handleCancelBooking}
                 className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isCancelling
-                  ? "Cancelling..."
-                  : "Yes, Cancel"}
+                {isCancelling ? "Cancelling..." : "Yes, Cancel"}
               </button>
             </div>
           </div>
