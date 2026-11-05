@@ -1,10 +1,17 @@
+
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { toast } from "sonner";
+
 import { apiFetch } from "@/lib/api";
 
 const DEFAULT_MAX_CAPACITY = 10;
@@ -63,11 +70,55 @@ function timeToMinutes(time: string) {
 
   const [hours, minutes] = time.split(":").map(Number);
 
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+  if (
+    !Number.isFinite(hours) ||
+    !Number.isFinite(minutes)
+  ) {
     return 0;
   }
 
   return hours * 60 + minutes;
+}
+
+function getBookingErrorMessage(
+  status: number,
+  message?: string
+) {
+  if (status === 401) {
+    return (
+      message ||
+      "Please log in before creating a booking."
+    );
+  }
+
+  if (status === 403) {
+    return (
+      message ||
+      "You are not allowed to create this booking."
+    );
+  }
+
+  if (status === 409) {
+    return (
+      message ||
+      "This time slot is already booked. Please choose another time."
+    );
+  }
+
+  if (status === 400) {
+    return (
+      message ||
+      "Please check your booking information and try again."
+    );
+  }
+
+  if (status >= 500) {
+    return (
+      "The server could not create your booking right now. Please try again."
+    );
+  }
+
+  return message || "Failed to create booking.";
 }
 
 export default function BookStudioPage() {
@@ -93,51 +144,76 @@ export default function BookStudioPage() {
   */
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadStudio() {
       try {
         setLoading(true);
         setLoadError("");
 
-        const response = await apiFetch(`/api/studios/${studioId}`, {
-          cache: "no-store",
-        });
+        const response = await apiFetch(
+          `/api/studios/${studioId}`,
+          {
+            cache: "no-store",
+          }
+        );
 
-        let data: Studio | { message?: string } | null = null;
+        let data:
+          | Studio
+          | { message?: string }
+          | null = null;
 
         try {
           data = await response.json();
         } catch {
-          throw new Error("The server returned an invalid response.");
+          throw new Error(
+            "The server returned an invalid response."
+          );
         }
 
         if (!response.ok) {
           throw new Error(
-            (data && "message" in data && data.message) ||
+            (data &&
+              "message" in data &&
+              data.message) ||
               "Failed to load studio."
           );
         }
 
-        setStudio(data as Studio);
+        if (!cancelled) {
+          setStudio(data as Studio);
+        }
       } catch (error) {
-        console.error("Failed to load studio:", error);
+        console.error(
+          "Failed to load studio:",
+          error
+        );
 
-        const message =
-          error instanceof TypeError
-            ? "Cannot connect to the server. Please make sure the backend is running."
-            : error instanceof Error
-              ? error.message
-              : "Failed to load studio.";
+        if (!cancelled) {
+          const message =
+            error instanceof TypeError
+              ? "Cannot connect to the server. Please make sure the backend is running."
+              : error instanceof Error
+                ? error.message
+                : "Failed to load studio.";
 
-        setLoadError(message);
-        toast.error(message);
+          setLoadError(message);
+          toast.error(message);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     if (studioId) {
       void loadStudio();
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [studioId]);
 
   /*
@@ -149,7 +225,8 @@ export default function BookStudioPage() {
   const storedCapacity = Number(studio?.maxCapacity);
 
   const maxCapacity =
-    Number.isInteger(storedCapacity) && storedCapacity > 0
+    Number.isInteger(storedCapacity) &&
+    storedCapacity > 0
       ? storedCapacity
       : DEFAULT_MAX_CAPACITY;
 
@@ -183,16 +260,22 @@ export default function BookStudioPage() {
 
   /*
   |--------------------------------------------------------------------------
-  | Time validation
+  | Date and time validation
   |--------------------------------------------------------------------------
   */
 
-  const isToday = date === getToday();
+  const today = getToday();
+
+  const isToday = date === today;
+
+  const dateIsValid =
+    Boolean(date) && date >= today;
 
   const startTimeIsValidForToday =
     !isToday ||
     !startTime ||
-    timeToMinutes(startTime) > getCurrentTimeInMinutes();
+    timeToMinutes(startTime) >
+      getCurrentTimeInMinutes();
 
   const bookingTimeIsValid =
     Boolean(startTime) &&
@@ -207,27 +290,35 @@ export default function BookStudioPage() {
   */
 
   const hourlyRate = Number(
-    studio?.pricePerHour ?? studio?.price ?? 0
+    studio?.pricePerHour ??
+      studio?.price ??
+      0
   );
 
   const estimatedPrice =
-    duration > 0 ? duration * hourlyRate : 0;
-
-  const securityDeposit =
-    studio && Number.isFinite(Number(studio.securityDeposit))
-      ? Math.max(0, Number(studio.securityDeposit))
+    duration > 0
+      ? duration * hourlyRate
       : 0;
 
-  const totalAmount = estimatedPrice + securityDeposit;
+  const securityDeposit =
+    studio &&
+    Number.isFinite(
+      Number(studio.securityDeposit)
+    )
+      ? Math.max(
+          0,
+          Number(studio.securityDeposit)
+        )
+      : 0;
+
+  const totalAmount =
+    estimatedPrice + securityDeposit;
 
   /*
   |--------------------------------------------------------------------------
   | Form validation
   |--------------------------------------------------------------------------
   */
-
-  const dateIsValid =
-    Boolean(date) && date >= getToday();
 
   const formIsValid =
     Boolean(studio) &&
@@ -252,33 +343,44 @@ export default function BookStudioPage() {
     }
 
     if (!studio) {
-      toast.error("Studio information is not available.");
+      toast.error(
+        "Studio information is not available."
+      );
       return;
     }
 
     if (!date) {
-      toast.error("Please select a booking date.");
+      toast.error(
+        "Please select a booking date."
+      );
       return;
     }
 
-    if (date < getToday()) {
-      toast.error("You cannot select a past date.");
+    if (date < today) {
+      toast.error(
+        "You cannot select a past date."
+      );
       return;
     }
 
     if (!startTime || !endTime) {
-      toast.error("Please select both start and end time.");
+      toast.error(
+        "Please select both start and end time."
+      );
       return;
     }
 
     if (duration <= 0) {
-      toast.error("End time must be later than start time.");
+      toast.error(
+        "End time must be later than start time."
+      );
       return;
     }
 
     if (
       isToday &&
-      timeToMinutes(startTime) <= getCurrentTimeInMinutes()
+      timeToMinutes(startTime) <=
+        getCurrentTimeInMinutes()
     ) {
       toast.error(
         "For today's booking, the start time must be in the future."
@@ -303,24 +405,27 @@ export default function BookStudioPage() {
     setBookingLoading(true);
 
     try {
-      const response = await apiFetch("/api/bookings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          studioId,
-          studioName: studio.name,
-          date,
-          startTime,
-          endTime,
-          guests: guestCount,
-          totalHours: duration,
-          price: estimatedPrice,
-          deposit: securityDeposit,
-          totalAmount,
-        }),
-      });
+      const response = await apiFetch(
+        "/api/bookings",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            studioId,
+            studioName: studio.name,
+            date,
+            startTime,
+            endTime,
+            guests: guestCount,
+            totalHours: duration,
+            price: estimatedPrice,
+            deposit: securityDeposit,
+            totalAmount,
+          }),
+        }
+      );
 
       let data: BookingResponse = {};
 
@@ -332,27 +437,30 @@ export default function BookStudioPage() {
         );
       }
 
-      console.log("Booking response:", {
-        status: response.status,
-        ok: response.ok,
-        data,
-      });
-
       if (!response.ok) {
         throw new Error(
-          data.message || "Failed to create booking."
+          getBookingErrorMessage(
+            response.status,
+            data.message
+          )
         );
       }
 
       toast.success(
-        data.message || "Booking created successfully!"
+        data.message ||
+          "Booking created successfully!"
       );
 
       router.push("/bookings");
     } catch (error) {
-      console.error("Create booking error:", error);
+      console.error(
+        "Create booking error:",
+        error
+      );
 
-      if (error instanceof TypeError) {
+      if (
+        error instanceof TypeError
+      ) {
         toast.error(
           "Cannot connect to the server. Please make sure the backend is running."
         );
@@ -422,7 +530,9 @@ export default function BookStudioPage() {
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={() => window.location.reload()}
+                onClick={() =>
+                  window.location.reload()
+                }
                 className="studio-primary-button"
               >
                 Try Again
@@ -457,7 +567,8 @@ export default function BookStudioPage() {
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-muted">
-              We could not find the studio you are trying to book.
+              We could not find the studio you are
+              trying to book.
             </p>
 
             <Link
@@ -480,6 +591,7 @@ export default function BookStudioPage() {
     <main className="min-h-screen bg-background py-8 text-foreground sm:py-12 lg:py-16">
       <div className="container-studio">
         {/* Header */}
+
         <div className="mb-8">
           <Link
             href={`/studios/${studio._id}`}
@@ -503,6 +615,7 @@ export default function BookStudioPage() {
 
         <div className="grid gap-6 lg:grid-cols-[1fr_420px] lg:gap-8">
           {/* Studio information */}
+
           <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
             <div className="relative h-64 w-full sm:h-80">
               {studio.image ? (
@@ -534,7 +647,10 @@ export default function BookStudioPage() {
 
                 <div className="text-right">
                   <p className="text-xl font-bold text-primary">
-                    ৳{hourlyRate.toLocaleString("en-BD")}
+                    ৳
+                    {hourlyRate.toLocaleString(
+                      "en-BD"
+                    )}
                   </p>
 
                   <p className="text-xs text-muted">
@@ -544,6 +660,7 @@ export default function BookStudioPage() {
               </div>
 
               {/* Studio specs */}
+
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-border bg-surface-hover p-4">
                   <p className="text-xs text-muted">
@@ -561,16 +678,21 @@ export default function BookStudioPage() {
                   </p>
 
                   <p className="mt-1 font-bold">
-                    ৳{securityDeposit.toLocaleString("en-BD")}
+                    ৳
+                    {securityDeposit.toLocaleString(
+                      "en-BD"
+                    )}
                   </p>
                 </div>
               </div>
 
-              {/* Legacy studio notice */}
+              {/* Legacy capacity */}
+
               {isLegacyCapacity ? (
                 <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
                   <p className="text-sm leading-6 text-muted">
-                    This studio uses the default capacity of{" "}
+                    This studio uses the default capacity
+                    of{" "}
                     <span className="font-semibold text-foreground">
                       {DEFAULT_MAX_CAPACITY} guests
                     </span>
@@ -594,6 +716,7 @@ export default function BookStudioPage() {
           </section>
 
           {/* Booking form */}
+
           <section className="h-fit rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
@@ -605,7 +728,8 @@ export default function BookStudioPage() {
               </h2>
 
               <p className="mt-2 text-sm leading-6 text-muted">
-                Choose your date, time and number of guests.
+                Choose your date, time and number of
+                guests.
               </p>
             </div>
 
@@ -614,6 +738,7 @@ export default function BookStudioPage() {
               className="mt-6 space-y-5"
             >
               {/* Date */}
+
               <div>
                 <label
                   htmlFor="booking-date"
@@ -625,13 +750,25 @@ export default function BookStudioPage() {
                 <input
                   id="booking-date"
                   type="date"
-                  min={getToday()}
+                  min={today}
                   value={date}
-                  onChange={(event) =>
-                    setDate(event.target.value)
-                  }
+                  onChange={(event) => {
+                    setDate(event.target.value);
+
+                    /*
+                     * Reset time when changing date.
+                     * This prevents a time selected for
+                     * today's date from accidentally
+                     * carrying over to another date.
+                     */
+                    setStartTime("");
+                    setEndTime("");
+                  }}
                   disabled={bookingLoading}
-                  aria-invalid={date.length > 0 && !dateIsValid}
+                  aria-invalid={
+                    date.length > 0 &&
+                    !dateIsValid
+                  }
                   className="min-h-11 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                   required
                 />
@@ -644,6 +781,7 @@ export default function BookStudioPage() {
               </div>
 
               {/* Time */}
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label
@@ -658,9 +796,13 @@ export default function BookStudioPage() {
                     type="time"
                     value={startTime}
                     onChange={(event) =>
-                      setStartTime(event.target.value)
+                      setStartTime(
+                        event.target.value
+                      )
                     }
-                    disabled={bookingLoading}
+                    disabled={
+                      bookingLoading || !date
+                    }
                     aria-invalid={
                       Boolean(startTime) &&
                       isToday &&
@@ -684,32 +826,59 @@ export default function BookStudioPage() {
                     type="time"
                     value={endTime}
                     onChange={(event) =>
-                      setEndTime(event.target.value)
+                      setEndTime(
+                        event.target.value
+                      )
                     }
-                    disabled={bookingLoading}
+                    disabled={
+                      bookingLoading || !date
+                    }
                     className="min-h-11 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                     required
                   />
                 </div>
               </div>
 
-              {/* Time validation messages */}
+              {/* Time feedback */}
+
+              {!date && (
+                <p className="text-xs text-muted">
+                  Select a date before choosing a time.
+                </p>
+              )}
+
               {startTime &&
               isToday &&
               !startTimeIsValidForToday ? (
                 <p className="text-sm font-medium text-red-500">
-                  For today is booking, the start time must be in
-                  the future.
+                  For today&apos;s booking, the start
+                  time must be in the future.
                 </p>
               ) : null}
 
-              {startTime && endTime && duration <= 0 ? (
+              {startTime &&
+              endTime &&
+              duration <= 0 ? (
                 <p className="text-sm font-medium text-red-500">
-                  End time must be later than start time.
+                  End time must be later than start
+                  time.
                 </p>
+              ) : null}
+
+              {duration > 0 ? (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+                  <p className="text-sm font-medium text-primary">
+                    Selected duration:{" "}
+                    {duration} hour
+                    {duration === 1
+                      ? ""
+                      : "s"}
+                  </p>
+                </div>
               ) : null}
 
               {/* Guests */}
+
               <div>
                 <label
                   htmlFor="guest-count"
@@ -725,11 +894,14 @@ export default function BookStudioPage() {
                   max={maxCapacity}
                   value={guests}
                   onChange={(event) =>
-                    setGuests(event.target.value)
+                    setGuests(
+                      event.target.value
+                    )
                   }
                   disabled={bookingLoading}
                   aria-invalid={
-                    guests.length > 0 && !validGuestCount
+                    guests.length > 0 &&
+                    !validGuestCount
                   }
                   className="min-h-11 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                   required
@@ -739,7 +911,8 @@ export default function BookStudioPage() {
                   Maximum {maxCapacity} guests
                 </p>
 
-                {guests && !validGuestCount ? (
+                {guests &&
+                !validGuestCount ? (
                   <p className="mt-2 text-sm font-medium text-red-500">
                     Guest count must be between 1 and{" "}
                     {maxCapacity}.
@@ -748,6 +921,7 @@ export default function BookStudioPage() {
               </div>
 
               {/* Price summary */}
+
               <div className="rounded-xl border border-border bg-surface-hover p-4">
                 <div className="flex items-center justify-between gap-4 text-sm">
                   <span className="text-muted">
@@ -757,7 +931,9 @@ export default function BookStudioPage() {
                   <span className="font-semibold">
                     {duration > 0
                       ? `${duration} hour${
-                          duration === 1 ? "" : "s"
+                          duration === 1
+                            ? ""
+                            : "s"
                         }`
                       : "—"}
                   </span>
@@ -769,7 +945,10 @@ export default function BookStudioPage() {
                   </span>
 
                   <span className="font-semibold">
-                    ৳{estimatedPrice.toLocaleString("en-BD")}
+                    ৳
+                    {estimatedPrice.toLocaleString(
+                      "en-BD"
+                    )}
                   </span>
                 </div>
 
@@ -779,7 +958,10 @@ export default function BookStudioPage() {
                   </span>
 
                   <span className="font-semibold">
-                    ৳{securityDeposit.toLocaleString("en-BD")}
+                    ৳
+                    {securityDeposit.toLocaleString(
+                      "en-BD"
+                    )}
                   </span>
                 </div>
 
@@ -791,16 +973,21 @@ export default function BookStudioPage() {
                   </span>
 
                   <span className="text-lg font-bold text-primary">
-                    ৳{totalAmount.toLocaleString("en-BD")}
+                    ৳
+                    {totalAmount.toLocaleString(
+                      "en-BD"
+                    )}
                   </span>
                 </div>
               </div>
 
               {/* Submit */}
+
               <button
                 type="submit"
                 disabled={
-                  bookingLoading || !formIsValid
+                  bookingLoading ||
+                  !formIsValid
                 }
                 className="studio-primary-button min-h-12 w-full disabled:cursor-not-allowed disabled:opacity-50"
               >
