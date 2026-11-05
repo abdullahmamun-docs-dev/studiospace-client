@@ -9,6 +9,16 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+  async rewrites() {
+    return [
+      {
+        source: "/api/auth/:path*",
+        destination:
+          "https://studiospace-server-ajny.onrender.com/api/auth/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
