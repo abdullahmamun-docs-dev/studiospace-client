@@ -13,17 +13,22 @@ type Studio = {
 };
 
 async function getFeaturedStudios(): Promise<Studio[]> {
-  const response = await apiFetch("/api/studios?limit=6", {
-    cache: "no-store",
-  });
+  try {
+    const response = await apiFetch("/api/studios?limit=6", {
+      cache: "no-store",
+    });
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch featured studios");
+    if (!response.ok) {
+      return [];
+    }
+
+    const studios: Studio[] = await response.json();
+
+    return studios.slice(0, 6);
+  } catch (error) {
+    console.error("Failed to load featured studios:", error);
+    return [];
   }
-
-  const studios: Studio[] = await response.json();
-
-  return studios.slice(0, 6);
 }
 
 export default async function FeaturedStudios() {
@@ -57,15 +62,23 @@ export default async function FeaturedStudios() {
           </Link>
         </div>
 
-        {/* Empty State */}
+        {/* Empty / Error Fallback */}
         {studios.length === 0 ? (
           <div className="mt-8 rounded-2xl border border-border bg-surface-soft p-8 text-center sm:mt-10 sm:p-12">
-            <p className="text-lg font-bold">
-              No featured studios available yet.
+            <div
+              className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-xl"
+              aria-hidden="true"
+            >
+              ✦
+            </div>
+
+            <p className="mt-4 text-lg font-bold">
+              No featured studios available right now.
             </p>
 
-            <p className="mt-2 text-sm text-muted">
-              Check back soon for new creative spaces.
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
+              New creative spaces are added regularly. Explore all studios
+              to find the perfect space for your next project.
             </p>
 
             <Link
