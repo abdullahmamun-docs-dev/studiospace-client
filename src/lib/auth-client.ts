@@ -1,14 +1,29 @@
-import { createAuthClient } from "better-auth/react";
+import type { NextConfig } from "next";
 
-const SERVER_AUTH_URL =
-  "https://studiospace-server-ajny.onrender.com/api/auth";
-
-const AUTH_BASE_URL = SERVER_AUTH_URL;
-
-export const authClient = createAuthClient({
-  baseURL: AUTH_BASE_URL,
-
-  fetchOptions: {
-    credentials: "include",
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
   },
-});
+
+  async rewrites() {
+    return [
+      {
+        source: "/api/auth/:path*",
+        destination:
+          "https://studiospace-server-ajny.onrender.com/api/auth/:path*",
+      },
+      {
+        source: "/api/:path*",
+        destination:
+          "https://studiospace-server-ajny.onrender.com/api/:path*",
+      },
+    ];
+  },
+};
+
+export default nextConfig;
