@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -47,6 +48,7 @@ export default function LoginPage() {
       router.refresh();
     } catch (error) {
       console.error("Login failed:", error);
+
       toast.error(
         "Something went wrong. Please try again."
       );
@@ -63,7 +65,8 @@ export default function LoginPage() {
     try {
       await authClient.signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL:
+          "https://studiospace-client-lemon.vercel.app/",
       });
     } catch (error) {
       console.error("Google login failed:", error);
@@ -190,6 +193,7 @@ export default function LoginPage() {
                 <span className="text-lg font-bold">
                   G
                 </span>
+
                 Continue with Google
               </>
             )}
