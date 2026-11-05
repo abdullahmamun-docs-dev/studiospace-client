@@ -253,7 +253,7 @@ export default function Navbar() {
           ) : (
             <div className="hidden items-center gap-2 sm:flex">
               <Link
-                href="/login"
+                href="/auth/login"
                 className="rounded-full px-4 py-2 text-sm font-semibold transition hover:bg-surface-hover"
               >
                 Login
@@ -297,8 +297,8 @@ export default function Navbar() {
           {!user && (
             <>
               <Link
-                href="/login"
-                className={mobileLinkClass("/login")}
+                href="/auth/login"
+                className={mobileLinkClass("/auth/login")}
               >
                 Login
               </Link>
