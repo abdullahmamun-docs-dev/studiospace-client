@@ -17,10 +17,42 @@ type Studio = {
 type StudiosPageProps = {
   searchParams: Promise<{
     category?: string;
+    q?: string;
   }>;
 };
 
-async function getStudios(category?: string): Promise<Studio[]> {
+const categoryMap: Record<string, string[]> = {
+  "photo-studios": ["Photo Studios", "Photography"],
+  "sound-stages": [
+    "Sound Stages",
+    "Video Production",
+    "Film & Video",
+  ],
+  "podcast-rooms": ["Podcast Rooms", "Podcast"],
+  "music-suites": [
+    "Music Suites",
+    "Music",
+    "Music & Recording",
+  ],
+  "art-workshops": [
+    "Art Workshops",
+    "Art",
+    "Creative Events",
+  ],
+};
+
+const categoryNames: Record<string, string> = {
+  "photo-studios": "Photo Studios",
+  "sound-stages": "Sound Stages",
+  "podcast-rooms": "Podcast Rooms",
+  "music-suites": "Music Suites",
+  "art-workshops": "Art Workshops",
+};
+
+async function getStudios(
+  category?: string,
+  searchQuery?: string
+): Promise<Studio[]> {
   const response = await apiFetch("/api/studios", {
     cache: "no-store",
   });
@@ -31,56 +63,47 @@ async function getStudios(category?: string): Promise<Studio[]> {
 
   const studios: Studio[] = await response.json();
 
-  if (!category) {
-    return studios;
+  let filteredStudios = studios;
+
+  // Category filter
+  if (category) {
+    const allowedCategories = categoryMap[category];
+
+    if (!allowedCategories) {
+      return [];
+    }
+
+    filteredStudios = filteredStudios.filter((studio) =>
+      allowedCategories.includes(studio.category)
+    );
   }
 
-  const categoryMap: Record<string, string[]> = {
-    "photo-studios": ["Photo Studios", "Photography"],
-    "sound-stages": [
-      "Sound Stages",
-      "Video Production",
-      "Film & Video",
-    ],
-    "podcast-rooms": ["Podcast Rooms", "Podcast"],
-    "music-suites": [
-      "Music Suites",
-      "Music",
-      "Music & Recording",
-    ],
-    "art-workshops": [
-      "Art Workshops",
-      "Art",
-      "Creative Events",
-    ],
-  };
+  // Search filter
+  if (searchQuery) {
+    const query = searchQuery.toLowerCase().trim();
 
-  const allowedCategories = categoryMap[category];
-
-  if (!allowedCategories) {
-    return [];
+    filteredStudios = filteredStudios.filter((studio) => {
+      return (
+        studio.name.toLowerCase().includes(query) ||
+        studio.location.toLowerCase().includes(query) ||
+        studio.category.toLowerCase().includes(query) ||
+        studio.description.toLowerCase().includes(query)
+      );
+    });
   }
 
-  return studios.filter((studio) =>
-    allowedCategories.includes(studio.category)
-  );
+  return filteredStudios;
 }
 
 export default async function StudiosPage({
   searchParams,
 }: StudiosPageProps) {
   const params = await searchParams;
+
   const category = params.category?.toLowerCase();
+  const searchQuery = params.q?.trim() || "";
 
-  const studios = await getStudios(category);
-
-  const categoryNames: Record<string, string> = {
-    "photo-studios": "Photo Studios",
-    "sound-stages": "Sound Stages",
-    "podcast-rooms": "Podcast Rooms",
-    "music-suites": "Music Suites",
-    "art-workshops": "Art Workshops",
-  };
+  const studios = await getStudios(category, searchQuery);
 
   const selectedCategory = category
     ? categoryNames[category] || "Studios"
@@ -125,12 +148,83 @@ export default async function StudiosPage({
               </Link>
             )}
           </div>
+
+          {/* Search */}
+          <form
+            action="/studios"
+            method="GET"
+            className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row"
+          >
+            {category && (
+              <input
+                type="hidden"
+                name="category"
+                value={category}
+              />
+            )}
+
+            <div className="relative flex-1">
+              <label htmlFor="studio-search" className="sr-only">
+                Search studios
+              </label>
+
+              <input
+                id="studio-search"
+                name="q"
+                type="search"
+                defaultValue={searchQuery}
+                placeholder="Search by studio name, location, category..."
+                className="h-12 w-full rounded-full border border-border bg-surface px-5 text-sm outline-none transition-colors placeholder:text-muted focus:border-primary"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="studio-primary-button h-12 shrink-0 px-6"
+            >
+              Search
+            </button>
+
+            {searchQuery && (
+              <Link
+                href={
+                  category
+                    ? `/studios?category=${category}`
+                    : "/studios"
+                }
+                className="studio-secondary-button h-12 shrink-0"
+              >
+                Clear
+              </Link>
+            )}
+          </form>
         </div>
       </section>
 
       {/* Studios */}
       <section className="py-12 sm:py-16 lg:py-20">
         <div className="container-studio">
+          {/* Active filters */}
+          {(category || searchQuery) && (
+            <div className="mb-6 flex flex-wrap items-center gap-2">
+              <span className="text-sm text-muted">
+                Active filters:
+              </span>
+
+              {category && (
+                <span className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold">
+                  {selectedCategory}
+                </span>
+              )}
+
+              {searchQuery && (
+                <span className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold">
+                  Search: “{searchQuery}”
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Result count */}
           <div className="mb-6 sm:mb-8">
             <p className="text-sm text-muted">
@@ -156,8 +250,9 @@ export default async function StudiosPage({
               </h2>
 
               <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">
-                We do not have any studios listed in this category
-                yet. Explore all available spaces instead.
+                {searchQuery
+                  ? `We could not find any studios matching "${searchQuery}". Try another search term.`
+                  : "We do not have any studios listed in this category yet. Explore all available spaces instead."}
               </p>
 
               <Link
