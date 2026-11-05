@@ -50,6 +50,26 @@ function getToday() {
   return `${year}-${month}-${day}`;
 }
 
+function getCurrentTimeInMinutes() {
+  const now = new Date();
+
+  return now.getHours() * 60 + now.getMinutes();
+}
+
+function timeToMinutes(time: string) {
+  if (!time) {
+    return 0;
+  }
+
+  const [hours, minutes] = time.split(":").map(Number);
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+    return 0;
+  }
+
+  return hours * 60 + minutes;
+}
+
 export default function BookStudioPage() {
   const params = useParams();
   const router = useRouter();
@@ -109,7 +129,6 @@ export default function BookStudioPage() {
               : "Failed to load studio.";
 
         setLoadError(message);
-
         toast.error(message);
       } finally {
         setLoading(false);
@@ -152,22 +171,34 @@ export default function BookStudioPage() {
       return 0;
     }
 
-    const [startHour, startMinute] = startTime.split(":").map(Number);
-    const [endHour, endMinute] = endTime.split(":").map(Number);
+    const start = timeToMinutes(startTime);
+    const end = timeToMinutes(endTime);
 
-    const start = startHour * 60 + startMinute;
-    const end = endHour * 60 + endMinute;
-
-    if (
-      !Number.isFinite(start) ||
-      !Number.isFinite(end) ||
-      end <= start
-    ) {
+    if (end <= start) {
       return 0;
     }
 
     return (end - start) / 60;
   }, [startTime, endTime]);
+
+  /*
+  |--------------------------------------------------------------------------
+  | Time validation
+  |--------------------------------------------------------------------------
+  */
+
+  const isToday = date === getToday();
+
+  const startTimeIsValidForToday =
+    !isToday ||
+    !startTime ||
+    timeToMinutes(startTime) > getCurrentTimeInMinutes();
+
+  const bookingTimeIsValid =
+    Boolean(startTime) &&
+    Boolean(endTime) &&
+    duration > 0 &&
+    startTimeIsValidForToday;
 
   /*
   |--------------------------------------------------------------------------
@@ -195,17 +226,13 @@ export default function BookStudioPage() {
   |--------------------------------------------------------------------------
   */
 
-  const dateIsValid = Boolean(date) && date >= getToday();
-
-  const timeIsValid =
-    Boolean(startTime) &&
-    Boolean(endTime) &&
-    duration > 0;
+  const dateIsValid =
+    Boolean(date) && date >= getToday();
 
   const formIsValid =
     Boolean(studio) &&
     dateIsValid &&
-    timeIsValid &&
+    bookingTimeIsValid &&
     validGuestCount &&
     hourlyRate > 0;
 
@@ -246,6 +273,16 @@ export default function BookStudioPage() {
 
     if (duration <= 0) {
       toast.error("End time must be later than start time.");
+      return;
+    }
+
+    if (
+      isToday &&
+      timeToMinutes(startTime) <= getCurrentTimeInMinutes()
+    ) {
+      toast.error(
+        "For today's booking, the start time must be in the future."
+      );
       return;
     }
 
@@ -294,6 +331,12 @@ export default function BookStudioPage() {
           "The server returned an invalid response."
         );
       }
+
+      console.log("Booking response:", {
+        status: response.status,
+        ok: response.ok,
+        data,
+      });
 
       if (!response.ok) {
         throw new Error(
@@ -588,6 +631,7 @@ export default function BookStudioPage() {
                     setDate(event.target.value)
                   }
                   disabled={bookingLoading}
+                  aria-invalid={date.length > 0 && !dateIsValid}
                   className="min-h-11 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                   required
                 />
@@ -617,6 +661,11 @@ export default function BookStudioPage() {
                       setStartTime(event.target.value)
                     }
                     disabled={bookingLoading}
+                    aria-invalid={
+                      Boolean(startTime) &&
+                      isToday &&
+                      !startTimeIsValidForToday
+                    }
                     className="min-h-11 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                     required
                   />
@@ -644,7 +693,16 @@ export default function BookStudioPage() {
                 </div>
               </div>
 
-              {/* Invalid time message */}
+              {/* Time validation messages */}
+              {startTime &&
+              isToday &&
+              !startTimeIsValidForToday ? (
+                <p className="text-sm font-medium text-red-500">
+                  For today is booking, the start time must be in
+                  the future.
+                </p>
+              ) : null}
+
               {startTime && endTime && duration <= 0 ? (
                 <p className="text-sm font-medium text-red-500">
                   End time must be later than start time.
@@ -670,6 +728,9 @@ export default function BookStudioPage() {
                     setGuests(event.target.value)
                   }
                   disabled={bookingLoading}
+                  aria-invalid={
+                    guests.length > 0 && !validGuestCount
+                  }
                   className="min-h-11 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                   required
                 />
