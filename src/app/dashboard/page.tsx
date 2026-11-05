@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AuthGuard from "../components/AuthGuard";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
@@ -37,15 +37,14 @@ function formatDate(dateString: string) {
     return dateString;
   }
 
-  return new Date(
-    year,
-    month - 1,
-    day
-  ).toLocaleDateString("en-BD", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  return new Date(year, month - 1, day).toLocaleDateString(
+    "en-BD",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }
+  );
 }
 
 function formatPrice(amount: number) {
@@ -73,6 +72,63 @@ function getStatusStyle(status: string) {
 
 function getStatusLabel(status: string) {
   return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+function StatCard({
+  label,
+  value,
+  description,
+  tone = "default",
+}: {
+  label: string;
+  value: string | number;
+  description: string;
+  tone?: "default" | "yellow" | "green" | "blue" | "red" | "primary";
+}) {
+  const toneClasses = {
+    default:
+      "border-border bg-surface text-foreground",
+    yellow:
+      "border-yellow-500/20 bg-yellow-500/5 text-yellow-600",
+    green:
+      "border-green-500/20 bg-green-500/5 text-green-600",
+    blue:
+      "border-blue-500/20 bg-blue-500/5 text-blue-600",
+    red:
+      "border-red-500/20 bg-red-500/5 text-red-600",
+    primary:
+      "border-primary/20 bg-primary/5 text-primary",
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${toneClasses[tone]}`}
+    >
+      <p className="text-sm font-medium text-muted">
+        {label}
+      </p>
+
+      <p className="mt-2 text-3xl font-bold">
+        {value}
+      </p>
+
+      <p className="mt-1 text-xs text-muted">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function StatSkeleton() {
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+      <div className="h-4 w-24 animate-pulse rounded bg-surface-hover" />
+
+      <div className="mt-3 h-9 w-16 animate-pulse rounded bg-surface-hover" />
+
+      <div className="mt-2 h-3 w-28 animate-pulse rounded bg-surface-hover" />
+    </div>
+  );
 }
 
 export default function DashboardPage() {
@@ -167,6 +223,22 @@ export default function DashboardPage() {
     (booking) => booking.status === "cancelled"
   ).length;
 
+  const activeBookings =
+    pendingBookings + confirmedBookings;
+
+  const totalSpent = useMemo(() => {
+    return bookings
+      .filter(
+        (booking) =>
+          booking.status !== "cancelled"
+      )
+      .reduce(
+        (total, booking) =>
+          total + Number(booking.totalPrice || 0),
+        0
+      );
+  }, [bookings]);
+
   const recentBookings = [...bookings]
     .sort((a, b) => {
       const first = `${a.date} ${a.startTime}`;
@@ -207,10 +279,10 @@ export default function DashboardPage() {
                   <img
                     src={user.image}
                     alt={user.name || "User profile"}
-                    className="h-16 w-16 rounded-full object-cover"
+                    className="h-16 w-16 rounded-full object-cover ring-2 ring-primary/10"
                   />
                 ) : (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
                     {(user?.name ||
                       user?.email ||
                       "U")
@@ -231,95 +303,98 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Statistics */}
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-              <div className="rounded-2xl border border-border bg-surface p-5">
-                <p className="text-sm text-muted">
-                  Total bookings
+            {/* Dashboard overview */}
+            <div className="mt-8">
+              <div className="mb-4">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
+                  Overview
                 </p>
 
-                <p className="mt-2 text-3xl font-bold">
-                  {loadingStats ? "—" : totalBookings}
-                </p>
+                <h2 className="mt-2 text-2xl font-bold">
+                  Your activity at a glance
+                </h2>
 
-                <p className="mt-1 text-xs text-muted">
-                  All reservations
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  Track your bookings, spending, and studio
+                  listings from one place.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-5">
-                <p className="text-sm text-muted">
-                  Pending
-                </p>
+              {loadingStats ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                  {[1, 2, 3, 4, 5, 6].map(
+                    (item) => (
+                      <StatSkeleton key={item} />
+                    )
+                  )}
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                  <StatCard
+                    label="Total bookings"
+                    value={totalBookings}
+                    description="All reservations"
+                  />
 
-                <p className="mt-2 text-3xl font-bold text-yellow-600">
-                  {loadingStats ? "—" : pendingBookings}
-                </p>
+                  <StatCard
+                    label="Active"
+                    value={activeBookings}
+                    description="Pending + confirmed"
+                    tone="primary"
+                  />
 
-                <p className="mt-1 text-xs text-muted">
-                  Waiting for host
-                </p>
-              </div>
+                  <StatCard
+                    label="Pending"
+                    value={pendingBookings}
+                    description="Waiting for host"
+                    tone="yellow"
+                  />
 
-              <div className="rounded-2xl border border-green-500/20 bg-green-500/5 p-5">
-                <p className="text-sm text-muted">
-                  Confirmed
-                </p>
+                  <StatCard
+                    label="Confirmed"
+                    value={confirmedBookings}
+                    description="Upcoming bookings"
+                    tone="green"
+                  />
 
-                <p className="mt-2 text-3xl font-bold text-green-600">
-                  {loadingStats ? "—" : confirmedBookings}
-                </p>
+                  <StatCard
+                    label="Completed"
+                    value={completedBookings}
+                    description="Finished bookings"
+                    tone="blue"
+                  />
 
-                <p className="mt-1 text-xs text-muted">
-                  Upcoming bookings
-                </p>
-              </div>
+                  <StatCard
+                    label="My studios"
+                    value={studios.length}
+                    description="Listed creative spaces"
+                    tone="primary"
+                  />
+                </div>
+              )}
 
-              <div className="rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5">
-                <p className="text-sm text-muted">
-                  Completed
-                </p>
+              {!loadingStats && totalSpent > 0 && (
+                <div className="mt-4 rounded-2xl border border-border bg-surface p-5 shadow-sm sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">
+                      Booking spending
+                    </p>
 
-                <p className="mt-2 text-3xl font-bold text-blue-600">
-                  {loadingStats ? "—" : completedBookings}
-                </p>
+                    <p className="mt-1 text-sm text-muted">
+                      Total value of your non-cancelled
+                      bookings.
+                    </p>
+                  </div>
 
-                <p className="mt-1 text-xs text-muted">
-                  Finished bookings
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
-                <p className="text-sm text-muted">
-                  Cancelled
-                </p>
-
-                <p className="mt-2 text-3xl font-bold text-red-600">
-                  {loadingStats ? "—" : cancelledBookings}
-                </p>
-
-                <p className="mt-1 text-xs text-muted">
-                  Cancelled reservations
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
-                <p className="text-sm text-muted">
-                  My studios
-                </p>
-
-                <p className="mt-2 text-3xl font-bold text-primary">
-                  {loadingStats ? "—" : studios.length}
-                </p>
-
-                <p className="mt-1 text-xs text-muted">
-                  Listed creative spaces
-                </p>
-              </div>
+                  <p className="mt-3 text-2xl font-bold text-primary sm:mt-0">
+                    {formatPrice(totalSpent)}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Quick actions */}
-            <div className="mt-8">
+            <div className="mt-10">
               <div className="mb-4">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
                   Quick Actions
@@ -477,7 +552,7 @@ export default function DashboardPage() {
                   {recentBookings.map((booking) => (
                     <div
                       key={booking._id}
-                      className="rounded-2xl border border-border bg-surface p-5 shadow-sm transition hover:shadow-md"
+                      className="rounded-2xl border border-border bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                     >
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
