@@ -2,163 +2,331 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { toast } from "sonner";
-import AuthGuard from "../components/AuthGuard";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+
 import { apiFetch } from "@/lib/api";
 
 type Booking = {
   _id: string;
-  studioName: string;
+  id?: string;
+
+  studioId?: string;
+  studioName?: string;
+  studioTitle?: string;
+  title?: string;
+
   date: string;
   startTime: string;
   endTime: string;
-  guests: number;
-  totalHours: number;
 
-  // Current backend fields
-  price?: number;
-  deposit?: number;
-  totalAmount?: number;
+  guests?: number;
+  guestCount?: number;
 
-  // Backward compatibility with older records
+  status: string;
+
   totalPrice?: number;
-  securityDeposit?: number;
+  totalAmount?: number;
+  price?: number;
 
-  status: "pending" | "confirmed" | "completed" | "cancelled" | string;
+  deposit?: number;
+  depositAmount?: number;
+
+  location?: string;
+
+  createdAt?: string;
 };
 
 type FilterType = "all" | "upcoming" | "completed" | "cancelled";
 
-function getBookingPrice(booking: Booking) {
-  if (booking.totalAmount !== undefined) {
-    return Number(booking.totalAmount) || 0;
-  }
+function getBookingId(booking: Booking) {
+  return booking._id || booking.id || "";
+}
 
-  if (booking.totalPrice !== undefined) {
-    return Number(booking.totalPrice) || 0;
-  }
-
+function getBookingName(booking: Booking) {
   return (
-    (Number(booking.price) || 0) +
-    (Number(booking.deposit ?? booking.securityDeposit) || 0)
+    booking.studioName ||
+    booking.studioTitle ||
+    booking.title ||
+    "Studio"
+  );
+}
+
+function getBookingGuests(booking: Booking) {
+  return booking.guests ?? booking.guestCount ?? 1;
+}
+
+function getBookingPrice(booking: Booking) {
+  return (
+    booking.totalPrice ??
+    booking.totalAmount ??
+    booking.price ??
+    0
   );
 }
 
 function getBookingDeposit(booking: Booking) {
-  return Number(
-    booking.deposit ?? booking.securityDeposit ?? 0
-  ) || 0;
+  return booking.deposit ?? booking.depositAmount ?? 0;
 }
 
-function getStatusStyle(status: string) {
-  switch (status.toLowerCase()) {
-    case "pending":
-      return "bg-yellow-500/10 text-yellow-500";
-    case "confirmed":
-      return "bg-green-500/10 text-green-400";
-    case "completed":
-      return "bg-blue-500/10 text-blue-400";
-    case "cancelled":
-      return "bg-red-500/10 text-red-400";
-    default:
-      return "bg-surface-hover text-muted";
-  }
+function getBookingStatus(booking: Booking) {
+  return booking.status?.toLowerCase() || "pending";
 }
 
-function getStatusLabel(status: string) {
-  switch (status.toLowerCase()) {
-    case "pending":
-      return "Pending";
-    case "confirmed":
-      return "Confirmed";
-    case "completed":
-      return "Completed";
-    case "cancelled":
-      return "Cancelled";
-    default:
-      return status;
-  }
-}
+function isUpcoming(booking: Booking) {
+  const status = getBookingStatus(booking);
 
-function isUpcoming(status: string) {
   return status === "pending" || status === "confirmed";
 }
 
+function isCompleted(booking: Booking) {
+  return getBookingStatus(booking) === "completed";
+}
+
+function isCancelled(booking: Booking) {
+  const status = getBookingStatus(booking);
+
+  return (
+    status === "cancelled" ||
+    status === "canceled" ||
+    status === "rejected"
+  );
+}
+
+function formatDate(date: string) {
+  if (!date) {
+    return "Date unavailable";
+  }
+
+  const parsed = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+
+  return parsed.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function formatStatus(status: string) {
+  const normalized = status.toLowerCase();
+
+  if (normalized === "confirmed") {
+    return "Confirmed";
+  }
+
+  if (normalized === "pending") {
+    return "Pending";
+  }
+
+  if (normalized === "completed") {
+    return "Completed";
+  }
+
+  if (
+    normalized === "cancelled" ||
+    normalized === "canceled"
+  ) {
+    return "Cancelled";
+  }
+
+  if (normalized === "rejected") {
+    return "Rejected";
+  }
+
+  return status;
+}
+
+function getStatusClass(status: string) {
+  const normalized = status.toLowerCase();
+
+  if (normalized === "confirmed") {
+    return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+  }
+
+  if (normalized === "completed") {
+    return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+  }
+
+  if (normalized === "pending") {
+    return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+  }
+
+  if (
+    normalized === "cancelled" ||
+    normalized === "canceled" ||
+    normalized === "rejected"
+  ) {
+    return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+  }
+
+  return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+}
+
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const [selectedBooking, setSelectedBooking] =
-    useState<Booking | null>(null);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const router = useRouter();
+
+  const [bookings, setBookings] = useState<Booking[] | null>(null);
+  const [activeFilter, setActiveFilter] =
+    useState<FilterType>("all");
+
+  const [cancellingId, setCancellingId] =
+    useState<string | null>(null);
+
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  /*
+   * IMPORTANT:
+   * All React Hooks are above the conditional return.
+   */
 
   useEffect(() => {
+    let cancelled = false;
+
     async function fetchBookings() {
       try {
-        const response = await apiFetch("/api/bookings/my-bookings");
-        const data = await response.json();
+        const response = await apiFetch(
+          "/api/bookings/my-bookings"
+        );
+
+        let data: unknown;
+
+        try {
+          data = await response.json();
+        } catch {
+          throw new Error(
+            "The server returned an invalid response."
+          );
+        }
 
         if (!response.ok) {
-          throw new Error(
-            data.message || "Failed to fetch bookings."
-          );
+          const message =
+            typeof data === "object" &&
+            data !== null &&
+            "message" in data &&
+            typeof data.message === "string"
+              ? data.message
+              : "Failed to fetch bookings.";
+
+          throw new Error(message);
         }
 
         if (!Array.isArray(data)) {
           throw new Error("Invalid booking data received.");
         }
 
-        setBookings(data);
+        if (!cancelled) {
+          setBookings(data as Booking[]);
+        }
       } catch (error) {
         console.error("Failed to fetch bookings:", error);
 
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to load your bookings."
-        );
-      } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setBookings([]);
+
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Failed to load your bookings."
+          );
+        }
       }
     }
 
     void fetchBookings();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  const stats = useMemo(() => {
+    const list = bookings ?? [];
+
+    return {
+      all: list.length,
+      upcoming: list.filter(isUpcoming).length,
+      completed: list.filter(isCompleted).length,
+      cancelled: list.filter(isCancelled).length,
+    };
+  }, [bookings]);
+
+  const filteredBookings = useMemo(() => {
+    const list = bookings ?? [];
+
+    if (activeFilter === "upcoming") {
+      return list.filter(isUpcoming);
+    }
+
+    if (activeFilter === "completed") {
+      return list.filter(isCompleted);
+    }
+
+    if (activeFilter === "cancelled") {
+      return list.filter(isCancelled);
+    }
+
+    return list;
+  }, [bookings, activeFilter]);
+
   async function handleCancelBooking() {
-    if (!selectedBooking || selectedBooking.status !== "pending") {
+    if (!cancellingId) {
       return;
     }
 
-    const bookingId = selectedBooking._id;
-    setCancellingId(bookingId);
+    setIsCancelling(true);
 
     try {
       const response = await apiFetch(
-        `/api/bookings/${bookingId}/cancel`,
-        { method: "PATCH" }
+        `/api/bookings/${cancellingId}/cancel`,
+        {
+          method: "PATCH",
+        }
       );
 
-      const data = await response.json();
+      let data: unknown = null;
 
-      if (!response.ok) {
-        throw new Error(
-          data.message || "Failed to cancel booking."
-        );
+      try {
+        data = await response.json();
+      } catch {
+        // Successful response may not contain JSON.
       }
 
-      setBookings((currentBookings) =>
-        currentBookings.map((booking) =>
-          booking._id === bookingId
-            ? { ...booking, status: "cancelled" }
-            : booking
-        )
-      );
+      if (!response.ok) {
+        const message =
+          typeof data === "object" &&
+          data !== null &&
+          "message" in data &&
+          typeof data.message === "string"
+            ? data.message
+            : "Failed to cancel booking.";
 
-      setSelectedBooking(null);
-      setActiveFilter("cancelled");
+        throw new Error(message);
+      }
+
       toast.success("Booking cancelled successfully.");
+
+      setBookings((currentBookings) => {
+        if (!currentBookings) {
+          return currentBookings;
+        }
+
+        return currentBookings.map((booking) => {
+          if (getBookingId(booking) !== cancellingId) {
+            return booking;
+          }
+
+          return {
+            ...booking,
+            status: "cancelled",
+          };
+        });
+      });
+
+      setCancellingId(null);
     } catch (error) {
       console.error("Failed to cancel booking:", error);
 
@@ -168,403 +336,316 @@ export default function BookingsPage() {
           : "Failed to cancel booking."
       );
     } finally {
-      setCancellingId(null);
+      setIsCancelling(false);
     }
   }
 
-  const counts = useMemo(() => {
-    return {
-      all: bookings.length,
-      upcoming: bookings.filter((booking) =>
-        isUpcoming(booking.status)
-      ).length,
-      completed: bookings.filter(
-        (booking) => booking.status === "completed"
-      ).length,
-      cancelled: bookings.filter(
-        (booking) => booking.status === "cancelled"
-      ).length,
-    };
-  }, [bookings]);
+  /*
+   * Loading UI
+   * No Hook is called after this point.
+   */
 
-  const filteredBookings = useMemo(() => {
-    switch (activeFilter) {
-      case "upcoming":
-        return bookings.filter((booking) =>
-          isUpcoming(booking.status)
-        );
-      case "completed":
-        return bookings.filter(
-          (booking) => booking.status === "completed"
-        );
-      case "cancelled":
-        return bookings.filter(
-          (booking) => booking.status === "cancelled"
-        );
-      default:
-        return bookings;
-    }
-  }, [bookings, activeFilter]);
-
-  if (loading) {
+  if (bookings === null) {
     return (
-      <AuthGuard>
-        <main className="min-h-screen bg-background text-foreground">
-          <div className="mx-auto flex min-h-screen items-center justify-center px-4">
-            <p className="text-sm text-muted">
+      <main className="min-h-screen bg-background text-foreground">
+        <div className="mx-auto flex min-h-screen items-center justify-center px-4">
+          <div className="text-center">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+
+            <p className="mt-4 text-sm font-medium text-muted">
               Loading your bookings...
             </p>
           </div>
-        </main>
-      </AuthGuard>
+        </div>
+      </main>
     );
   }
 
-  const filterItems: {
-    key: FilterType;
-    label: string;
-    count: number;
-  }[] = [
-    { key: "all", label: "All", count: counts.all },
-    { key: "upcoming", label: "Upcoming", count: counts.upcoming },
-    { key: "completed", label: "Completed", count: counts.completed },
-    { key: "cancelled", label: "Cancelled", count: counts.cancelled },
-  ];
-
   return (
-    <AuthGuard>
-      <main className="min-h-screen bg-background text-foreground">
-        {/* Hero */}
-        <section className="border-b border-border bg-surface-soft">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-20">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary sm:text-sm sm:tracking-[0.2em]">
-              My bookings
+    <main className="min-h-screen bg-background text-foreground">
+      <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-primary">
+            StudioSpace
+          </p>
+
+          <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
+            My Bookings
+          </h1>
+
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted sm:text-base">
+            View and manage all your studio booking requests in
+            one place.
+          </p>
+        </div>
+
+        {/* Statistics */}
+        <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="rounded-2xl border border-border bg-surface p-5">
+            <p className="text-sm font-medium text-muted">
+              All Bookings
             </p>
 
-            <h1 className="mt-3 max-w-4xl text-3xl font-bold leading-tight tracking-[-0.04em] sm:text-5xl lg:text-6xl">
-              Your creative space bookings.
-            </h1>
-
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-muted sm:mt-5 sm:text-base sm:leading-7 lg:text-lg">
-              Manage your studio reservations, check booking
-              status, and keep track of your creative projects.
+            <p className="mt-2 text-3xl font-black">
+              {stats.all}
             </p>
           </div>
-        </section>
 
-        {/* Main */}
-        <section className="py-8 sm:py-12 lg:py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            {/* Filter Tabs */}
-            <div className="mb-8 overflow-x-auto">
-              <div className="flex min-w-max gap-2 rounded-2xl border border-border bg-surface p-2">
-                {filterItems.map((item) => {
-                  const active = activeFilter === item.key;
+          <div className="rounded-2xl border border-border bg-surface p-5">
+            <p className="text-sm font-medium text-muted">
+              Upcoming
+            </p>
 
-                  return (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => setActiveFilter(item.key)}
-                      className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all sm:px-5 ${
-                        active
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted hover:bg-surface-hover hover:text-foreground"
-                      }`}
-                    >
-                      <span>{item.label}</span>
-                      <span
-                        className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold ${
-                          active ? "bg-white/20" : "bg-surface-hover"
-                        }`}
-                      >
-                        {item.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+            <p className="mt-2 text-3xl font-black">
+              {stats.upcoming}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-surface p-5">
+            <p className="text-sm font-medium text-muted">
+              Completed
+            </p>
+
+            <p className="mt-2 text-3xl font-black">
+              {stats.completed}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-surface p-5">
+            <p className="text-sm font-medium text-muted">
+              Cancelled
+            </p>
+
+            <p className="mt-2 text-3xl font-black">
+              {stats.cancelled}
+            </p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="mb-8 flex flex-wrap gap-2">
+          {(
+            [
+              ["all", "All", stats.all],
+              ["upcoming", "Upcoming", stats.upcoming],
+              ["completed", "Completed", stats.completed],
+              ["cancelled", "Cancelled", stats.cancelled],
+            ] as const
+          ).map(([value, label, count]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setActiveFilter(value)}
+              className={`rounded-full px-5 py-2.5 text-sm font-bold transition ${
+                activeFilter === value
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-surface text-foreground hover:bg-surface-hover"
+              }`}
+            >
+              {label} ({count})
+            </button>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredBookings.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-border bg-surface px-6 py-16 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-3xl">
+              📅
             </div>
 
-            {/* Empty State */}
-            {filteredBookings.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-surface px-5 py-12 text-center sm:px-8 sm:py-16">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-surface-hover text-xl text-primary">
-                  {activeFilter === "cancelled"
-                    ? "×"
-                    : activeFilter === "completed"
-                      ? "✓"
-                      : "○"}
-                </div>
+            <h2 className="mt-5 text-2xl font-bold">
+              No bookings found
+            </h2>
 
-                <h2 className="mt-5 text-xl font-bold sm:text-2xl">
-                  {activeFilter === "all"
-                    ? "No bookings yet"
-                    : activeFilter === "upcoming"
-                      ? "No upcoming bookings"
-                      : activeFilter === "completed"
-                        ? "No completed bookings"
-                        : "No cancelled bookings"}
-                </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
+              {activeFilter === "all"
+                ? "You haven't made any studio bookings yet."
+                : "There are no bookings in this category."}
+            </p>
 
-                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">
-                  {activeFilter === "cancelled"
-                    ? "You don't have any cancelled bookings."
-                    : activeFilter === "completed"
-                      ? "Your completed studio bookings will appear here."
-                      : activeFilter === "upcoming"
-                        ? "Your pending and confirmed bookings will appear here."
-                        : "Explore available studios and book a space for your next project."}
-                </p>
+            <button
+              type="button"
+              onClick={() => router.push("/studios")}
+              className="mt-6 rounded-full bg-primary px-6 py-3 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover"
+            >
+              Explore Studios
+            </button>
+          </div>
+        ) : (
+          /* Booking List */
+          <div className="space-y-5">
+            {filteredBookings.map((booking) => {
+              const bookingId = getBookingId(booking);
+              const status = getBookingStatus(booking);
 
-                {(activeFilter === "all" ||
-                  activeFilter === "upcoming") && (
-                  <Link
-                    href="/studios"
-                    className="studio-primary-button mt-6 w-full sm:w-auto"
-                  >
-                    Explore Studios
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <>
-                {/* Section Heading */}
-                <div className="mb-5 flex items-end justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">
-                      {activeFilter === "all"
-                        ? "All reservations"
-                        : activeFilter === "upcoming"
-                          ? "Upcoming reservations"
-                          : activeFilter === "completed"
-                            ? "Completed reservations"
-                            : "Cancelled reservations"}
-                    </p>
+              const canCancel = status === "pending";
 
-                    <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-                      {filteredBookings.length}{" "}
-                      {filteredBookings.length === 1
-                        ? "booking"
-                        : "bookings"}
-                    </h2>
-                  </div>
-                </div>
-
-                {/* Booking Cards */}
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
-                  {filteredBookings.map((booking) => {
-                    const cancelled = booking.status === "cancelled";
-                    const bookingPrice = getBookingPrice(booking);
-                    const bookingDeposit = getBookingDeposit(booking);
-
-                    return (
-                      <article
-                        key={booking._id}
-                        className={`rounded-2xl border bg-surface p-4 transition-shadow sm:p-6 ${
-                          cancelled
-                            ? "border-red-500/20 opacity-80"
-                            : "border-border hover:shadow-lg"
-                        }`}
-                      >
-                        {/* Card Header */}
-                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold uppercase tracking-wider text-primary sm:text-sm">
-                              Studio booking
-                            </p>
-
-                            <h3 className="mt-2 break-words text-xl font-bold sm:text-2xl">
-                              {booking.studioName}
-                            </h3>
-                          </div>
+              return (
+                <article
+                  key={bookingId}
+                  className="overflow-hidden rounded-3xl border border-border bg-surface"
+                >
+                  <div className="p-5 sm:p-6">
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <h2 className="text-xl font-bold">
+                            {getBookingName(booking)}
+                          </h2>
 
                           <span
-                            className={`w-fit shrink-0 rounded-full px-3 py-1.5 text-xs font-bold ${getStatusStyle(
-                              booking.status
+                            className={`rounded-full px-3 py-1 text-xs font-bold ${getStatusClass(
+                              status
                             )}`}
                           >
-                            {getStatusLabel(booking.status)}
+                            {formatStatus(status)}
                           </span>
                         </div>
 
-                        <div className="my-5 border-t border-border sm:my-6" />
-
-                        {/* Details */}
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                           <div>
-                            <p className="text-[11px] uppercase tracking-wider text-muted sm:text-xs">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                               Date
                             </p>
-                            <p className="mt-1 text-sm font-semibold sm:text-base">
-                              {booking.date}
+
+                            <p className="mt-1 font-semibold">
+                              {formatDate(booking.date)}
                             </p>
                           </div>
 
                           <div>
-                            <p className="text-[11px] uppercase tracking-wider text-muted sm:text-xs">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                               Time
                             </p>
-                            <p className="mt-1 text-sm font-semibold sm:text-base">
-                              {booking.startTime} - {booking.endTime}
+
+                            <p className="mt-1 font-semibold">
+                              {booking.startTime} -{" "}
+                              {booking.endTime}
                             </p>
                           </div>
 
                           <div>
-                            <p className="text-[11px] uppercase tracking-wider text-muted sm:text-xs">
-                              Duration
-                            </p>
-                            <p className="mt-1 text-sm font-semibold sm:text-base">
-                              {Number(booking.totalHours || 0).toFixed(2)} hours
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[11px] uppercase tracking-wider text-muted sm:text-xs">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                               Guests
                             </p>
-                            <p className="mt-1 text-sm font-semibold sm:text-base">
-                              {booking.guests}
+
+                            <p className="mt-1 font-semibold">
+                              {getBookingGuests(booking)}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                              Total
+                            </p>
+
+                            <p className="mt-1 font-semibold">
+                              ৳
+                              {getBookingPrice(
+                                booking
+                              ).toLocaleString()}
                             </p>
                           </div>
                         </div>
 
-                        {/* Price */}
-                        <div className="mt-5 flex items-center justify-between gap-4 border-t border-border pt-5 sm:mt-6">
-                          <span className="text-sm text-muted">
-                            Total price
-                          </span>
-
-                          <span className="shrink-0 text-xl font-bold text-primary sm:text-2xl">
-                            ৳{bookingPrice.toLocaleString()}
-                          </span>
-                        </div>
-
-                        {bookingDeposit > 0 && (
-                          <div className="mt-3 flex items-center justify-between gap-4">
-                            <span className="text-sm text-muted">
-                              Security deposit
-                            </span>
-
-                            <span className="text-sm font-semibold">
-                              ৳{bookingDeposit.toLocaleString()}
-                            </span>
-                          </div>
+                        {booking.location && (
+                          <p className="mt-5 text-sm text-muted">
+                            📍 {booking.location}
+                          </p>
                         )}
+                      </div>
 
-                        {/* Actions */}
-                        {booking.status === "pending" && (
+                      <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+                        {booking.studioId && (
                           <button
                             type="button"
-                            onClick={() => setSelectedBooking(booking)}
-                            className="mt-5 flex min-h-11 w-full items-center justify-center rounded-full border border-danger/40 px-4 py-2.5 text-sm font-bold text-danger transition-colors hover:bg-danger/10"
+                            onClick={() =>
+                              router.push(
+                                `/studios/${booking.studioId}`
+                              )
+                            }
+                            className="rounded-full border border-border px-5 py-2.5 text-sm font-bold transition hover:bg-surface-hover"
+                          >
+                            View Studio
+                          </button>
+                        )}
+
+                        {canCancel && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCancellingId(bookingId)
+                            }
+                            className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-red-700"
                           >
                             Cancel Booking
                           </button>
                         )}
+                      </div>
+                    </div>
 
-                        {booking.status === "confirmed" && (
-                          <div className="mt-5 rounded-xl bg-green-500/5 px-4 py-3 text-sm text-green-400">
-                            Your booking is confirmed.
-                          </div>
-                        )}
+                    <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 border-t border-border pt-4 text-sm text-muted">
+                      <span>
+                        Total: ৳
+                        {getBookingPrice(
+                          booking
+                        ).toLocaleString()}
+                      </span>
 
-                        {booking.status === "completed" && (
-                          <div className="mt-5 rounded-xl bg-blue-500/5 px-4 py-3 text-sm text-blue-400">
-                            This booking has been completed.
-                          </div>
-                        )}
-
-                        {booking.status === "cancelled" && (
-                          <div className="mt-5 rounded-xl bg-red-500/5 px-4 py-3 text-sm text-red-400">
-                            This booking was cancelled.
-                          </div>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-        </section>
-
-        {/* Cancel Confirmation Modal */}
-        {selectedBooking && (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/70 px-4 py-5 backdrop-blur-sm sm:py-8"
-            onClick={() => {
-              if (!cancellingId) {
-                setSelectedBooking(null);
-              }
-            }}
-          >
-            <div
-              className="my-auto w-full max-w-md rounded-2xl border border-border bg-surface p-5 shadow-2xl sm:p-6"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-danger/10 text-lg font-bold text-danger sm:h-12 sm:w-12 sm:text-xl">
-                !
-              </div>
-
-              <h2 className="mt-5 text-xl font-bold sm:text-2xl">
-                Cancel this booking?
-              </h2>
-
-              <p className="mt-3 text-sm leading-6 text-muted">
-                Are you sure you want to cancel your booking for{" "}
-                <span className="font-semibold text-foreground">
-                  {selectedBooking.studioName}
-                </span>
-                ?
-              </p>
-
-              <div className="mt-5 rounded-xl border border-border bg-surface-soft p-4 sm:mt-6">
-                <div className="flex items-start justify-between gap-4 text-sm">
-                  <span className="text-muted">Date</span>
-                  <span className="text-right font-semibold">
-                    {selectedBooking.date}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex items-start justify-between gap-4 text-sm">
-                  <span className="text-muted">Time</span>
-                  <span className="text-right font-semibold">
-                    {selectedBooking.startTime} - {selectedBooking.endTime}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex items-start justify-between gap-4 text-sm">
-                  <span className="text-muted">Total</span>
-                  <span className="text-right font-semibold text-primary">
-                    ৳{getBookingPrice(selectedBooking).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setSelectedBooking(null)}
-                  disabled={Boolean(cancellingId)}
-                  className="min-h-11 w-full rounded-full border border-border px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                >
-                  Keep Booking
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleCancelBooking}
-                  disabled={Boolean(cancellingId)}
-                  className="min-h-11 w-full rounded-full bg-danger px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-danger/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                >
-                  {cancellingId ? "Cancelling..." : "Yes, Cancel"}
-                </button>
-              </div>
-            </div>
+                      <span>
+                        Deposit: ৳
+                        {getBookingDeposit(
+                          booking
+                        ).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
-      </main>
-    </AuthGuard>
+      </section>
+
+      {/* Cancel Modal */}
+      {cancellingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-background p-6 shadow-2xl">
+            <h2 className="text-xl font-bold">
+              Cancel this booking?
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-muted">
+              Are you sure you want to cancel this booking?
+              This action cannot be undone.
+            </p>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={() => setCancellingId(null)}
+                className="rounded-full border border-border px-5 py-2.5 text-sm font-bold transition hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Keep Booking
+              </button>
+
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={handleCancelBooking}
+                className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isCancelling
+                  ? "Cancelling..."
+                  : "Yes, Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
   );
 }
