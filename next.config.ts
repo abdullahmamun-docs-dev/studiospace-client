@@ -17,6 +17,11 @@ const nextConfig: NextConfig = {
         destination:
           "https://studiospace-server-ajny.onrender.com/api/auth/:path*",
       },
+      {
+        source: "/api/:path*",
+        destination:
+          "https://studiospace-server-ajny.onrender.com/api/:path*",
+      },
     ];
   },
 };
