@@ -3,6 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 
+type Review = {
+  _id: string;
+  userId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+};
+
 type Studio = {
   _id: string;
   name: string;
@@ -12,16 +21,26 @@ type Studio = {
   securityDeposit?: number;
   maxCapacity?: number;
   image: string;
+  gallery?: string[];
   description: string;
   amenities: string[];
   rating?: number;
+  reviews?: Review[];
+  hostId?: string;
+  hostName?: string;
+  hostEmail?: string;
 };
 
-async function getStudio(id: string): Promise<Studio | null> {
+async function getStudio(
+  id: string
+): Promise<Studio | null> {
   try {
-    const response = await apiFetch(`/api/studios/${id}`, {
-      cache: "no-store",
-    });
+    const response = await apiFetch(
+      `/api/studios/${id}`,
+      {
+        cache: "no-store",
+      }
+    );
 
     if (response.status === 404) {
       return null;
@@ -43,9 +62,7 @@ async function getStudio(id: string): Promise<Studio | null> {
 }
 
 type StudioDetailsPageProps = {
-  params: Promise<{
-    id: string;
-  }>;
+  params: Promise<{ id: string }>;
 };
 
 export default async function StudioDetailsPage({
@@ -62,195 +79,320 @@ export default async function StudioDetailsPage({
   const maxCapacity = Number(studio.maxCapacity);
 
   const validCapacity =
-    Number.isInteger(maxCapacity) && maxCapacity > 0;
+    Number.isInteger(maxCapacity) &&
+    maxCapacity > 0;
+
+  const gallery = Array.from(
+    new Set(
+      [
+        studio.image,
+        ...(Array.isArray(studio.gallery)
+          ? studio.gallery
+          : []),
+      ].filter(Boolean)
+    )
+  );
+
+  const reviews = Array.isArray(studio.reviews)
+    ? studio.reviews
+    : [];
+
+  const rating =
+    typeof studio.rating === "number"
+      ? studio.rating
+      : 0;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      {/* Top navigation */}
-      <div className="border-b border-border">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
-          <Link
-            href="/studios"
-            className="text-xs font-semibold text-muted transition-colors hover:text-primary sm:text-sm"
-          >
-            ← Back to studios
-          </Link>
+      <div className="container-studio py-8 sm:py-12">
+        {/* Back */}
+        <Link
+          href="/studios"
+          className="inline-flex text-sm font-semibold text-muted transition hover:text-foreground"
+        >
+          ← Back to Explore Studios
+        </Link>
 
-          <span className="text-sm font-bold tracking-tight sm:text-base">
-            StudioSpace
-          </span>
-        </div>
-      </div>
-
-      {/* Studio details */}
-      <section className="py-8 sm:py-12 lg:py-16">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {/* Image */}
-          <div className="relative h-[280px] overflow-hidden rounded-2xl border border-border sm:h-[400px] sm:rounded-3xl md:h-[480px] lg:h-[620px]">
-            <Image
-              src={studio.image}
-              alt={studio.name}
-              fill
-              priority
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 1280px"
-              className="object-cover"
-            />
-
-            <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 via-black/30 to-transparent p-5 sm:p-8 md:p-10">
-              <span className="inline-flex max-w-full rounded-full bg-primary px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground sm:px-4 sm:py-2 sm:text-xs">
-                {studio.category}
-              </span>
-
-              <h1 className="mt-3 max-w-3xl text-3xl font-bold leading-tight tracking-[-0.04em] text-white sm:mt-4 sm:text-5xl md:text-6xl">
-                {studio.name}
-              </h1>
-
-              <p className="mt-2 text-xs font-medium text-white/80 sm:mt-3 sm:text-base">
-                {studio.location}
-              </p>
+        {/* Main */}
+        <div className="mt-6 grid gap-8 lg:grid-cols-[1.4fr_0.8fr] lg:items-start">
+          {/* Left */}
+          <div>
+            {/* Main Image */}
+            <div className="relative aspect-[16/10] overflow-hidden rounded-2xl border border-border bg-surface">
+              <Image
+                src={studio.image}
+                alt={studio.name}
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 65vw"
+                className="object-cover"
+              />
             </div>
-          </div>
 
-          {/* Content */}
-          <div className="mt-8 grid gap-8 sm:mt-10 sm:gap-10 lg:grid-cols-[1fr_360px] lg:gap-12">
-            {/* Left content */}
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary sm:text-sm sm:tracking-[0.2em]">
-                About this space
-              </p>
+            {/* Gallery */}
+            {gallery.length > 1 && (
+              <section className="mt-6">
+                <div className="mb-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+                    Gallery
+                  </p>
 
-              <h2 className="mt-3 max-w-3xl text-2xl font-bold leading-tight tracking-tight sm:text-3xl md:text-4xl">
-                Built for creators who need room to make.
-              </h2>
+                  <h2 className="mt-1 text-xl font-bold sm:text-2xl">
+                    Explore the space
+                  </h2>
+                </div>
 
-              <p className="mt-4 max-w-3xl text-sm leading-7 text-muted sm:mt-5 sm:text-base sm:leading-8">
-                {studio.description}
-              </p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {gallery.map((image, index) => (
+                    <div
+                      key={`${image}-${index}`}
+                      className="relative aspect-[4/3] overflow-hidden rounded-xl border border-border bg-surface"
+                    >
+                      <Image
+                        src={image}
+                        alt={`${studio.name} gallery image ${
+                          index + 1
+                        }`}
+                        fill
+                        sizes="(max-width: 640px) 50vw, 33vw"
+                        className="object-cover transition duration-300 hover:scale-105"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
-              {/* Rating */}
-              <div className="mt-5 flex items-center gap-2 text-sm font-semibold">
-                <span>⭐</span>
+            {/* Studio Information */}
+            <div className="mt-8">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                  {studio.category}
+                </span>
 
-                <span>{studio.rating ?? 0}</span>
-
-                <span className="font-normal text-muted">
-                  Studio rating
+                <span className="text-sm text-muted">
+                  📍 {studio.location}
                 </span>
               </div>
 
-              {/* Facilities */}
-              <div className="mt-8 sm:mt-10">
-                <h3 className="text-lg font-bold sm:text-xl">
-                  Studio facilities
-                </h3>
+              <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+                {studio.name}
+              </h1>
 
-                {studio.amenities.length > 0 ? (
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:mt-5 sm:grid-cols-2">
-                    {studio.amenities.map((amenity) => (
-                      <div
-                        key={amenity}
-                        className="rounded-xl border border-border bg-surface p-3.5 text-sm font-medium sm:p-4"
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">
+                <span className="font-semibold">
+                  ⭐ {rating.toFixed(1)}
+                </span>
+
+                <span className="text-muted">
+                  {reviews.length}{" "}
+                  {reviews.length === 1
+                    ? "review"
+                    : "reviews"}
+                </span>
+
+                {validCapacity && (
+                  <span className="text-muted">
+                    👥 Up to {maxCapacity} guests
+                  </span>
+                )}
+              </div>
+
+              {/* Description */}
+              <section className="mt-8">
+                <h2 className="text-xl font-bold">
+                  About this space
+                </h2>
+
+                <p className="mt-3 whitespace-pre-line text-sm leading-7 text-muted sm:text-base">
+                  {studio.description}
+                </p>
+              </section>
+
+              {/* Amenities */}
+              {studio.amenities?.length > 0 && (
+                <section className="mt-8">
+                  <h2 className="text-xl font-bold">
+                    Facilities & Amenities
+                  </h2>
+
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {studio.amenities.map(
+                      (amenity, index) => (
+                        <div
+                          key={`${amenity}-${index}`}
+                          className="rounded-xl border border-border bg-surface px-4 py-3 text-sm"
+                        >
+                          ✓ {amenity}
+                        </div>
+                      )
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* Host Details */}
+              <section className="mt-8">
+                <h2 className="text-xl font-bold">
+                  Host Details
+                </h2>
+
+                <div className="mt-4 rounded-2xl border border-border bg-surface p-5">
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                        Host Name
+                      </p>
+
+                      <p className="mt-2 font-semibold">
+                        {studio.hostName ||
+                          "StudioSpace Host"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                        Host Email
+                      </p>
+
+                      <p className="mt-2 break-all font-semibold">
+                        {studio.hostEmail ||
+                          "Not available"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Reviews */}
+              <section className="mt-10">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+                      Reviews
+                    </p>
+
+                    <h2 className="mt-2 text-xl font-bold sm:text-2xl">
+                      What creators say
+                    </h2>
+                  </div>
+
+                  <p className="font-semibold">
+                    ⭐ {rating.toFixed(1)} / 5
+                  </p>
+                </div>
+
+                {reviews.length > 0 ? (
+                  <div className="mt-5 space-y-4">
+                    {reviews.map((review) => (
+                      <article
+                        key={review._id}
+                        className="rounded-2xl border border-border bg-surface p-5"
                       >
-                        <span className="mr-2 text-primary sm:mr-3">
-                          ✓
-                        </span>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <p className="font-bold">
+                              {review.userName}
+                            </p>
 
-                        {amenity}
-                      </div>
+                            <p className="mt-1 text-sm">
+                              {"⭐".repeat(
+                                Math.max(
+                                  1,
+                                  Math.min(
+                                    5,
+                                    review.rating
+                                  )
+                                )
+                              )}
+                            </p>
+                          </div>
+
+                          <span className="text-xs text-muted">
+                            {new Date(
+                              review.createdAt
+                            ).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        <p className="mt-4 text-sm leading-6 text-muted">
+                          {review.comment}
+                        </p>
+                      </article>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-4 text-sm text-muted">
-                    No facilities have been added yet.
-                  </p>
-                )}
-              </div>
-            </div>
+                  <div className="mt-5 rounded-2xl border border-border bg-surface p-6 text-center">
+                    <p className="font-semibold">
+                      No reviews yet
+                    </p>
 
-            {/* Booking Card */}
-            <aside className="h-fit rounded-2xl border border-border bg-surface p-5 shadow-xl sm:p-6 lg:sticky lg:top-8">
+                    <p className="mt-2 text-sm text-muted">
+                      Be the first creator to share your
+                      experience.
+                    </p>
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+
+          {/* Booking Card */}
+          <aside className="lg:sticky lg:top-24">
+            <div className="rounded-2xl border border-border bg-surface p-5 shadow-lg sm:p-6">
               <p className="text-sm text-muted">
                 Starting from
               </p>
 
-              <div className="mt-2">
-                <span className="text-2xl font-bold text-primary sm:text-3xl">
-                  ৳{Number(studio.pricePerHour).toLocaleString()}
+              <div className="mt-1 flex items-end gap-2">
+                <span className="text-3xl font-bold">
+                  ৳{studio.pricePerHour}
                 </span>
 
-                <span className="text-xs text-muted sm:text-sm">
-                  {" "}
+                <span className="pb-1 text-sm text-muted">
                   / hour
                 </span>
               </div>
 
-              <div className="my-5 border-t border-border sm:my-6" />
+              {studio.securityDeposit !== undefined && (
+                <div className="mt-4 rounded-xl bg-background p-4">
+                  <p className="text-xs text-muted">
+                    Security Deposit
+                  </p>
 
-              <div className="space-y-4 text-sm">
-                <div className="flex items-start justify-between gap-4">
-                  <span className="shrink-0 text-muted">
-                    Location
-                  </span>
-
-                  <span className="text-right font-semibold">
-                    {studio.location}
-                  </span>
+                  <p className="mt-1 font-bold">
+                    ৳{studio.securityDeposit}
+                  </p>
                 </div>
+              )}
 
-                <div className="flex items-start justify-between gap-4">
-                  <span className="shrink-0 text-muted">
-                    Category
-                  </span>
+              {validCapacity && (
+                <div className="mt-3 rounded-xl bg-background p-4">
+                  <p className="text-xs text-muted">
+                    Maximum Capacity
+                  </p>
 
-                  <span className="text-right font-semibold">
-                    {studio.category}
-                  </span>
+                  <p className="mt-1 font-bold">
+                    {maxCapacity} guests
+                  </p>
                 </div>
+              )}
 
-                <div className="flex items-start justify-between gap-4">
-                  <span className="shrink-0 text-muted">
-                    Maximum guests
-                  </span>
-
-                  <span className="text-right font-semibold">
-                    {validCapacity
-                      ? `${maxCapacity} guests`
-                      : "Not configured"}
-                  </span>
-                </div>
-
-                {studio.securityDeposit !== undefined && (
-                  <div className="flex items-start justify-between gap-4">
-                    <span className="shrink-0 text-muted">
-                      Security deposit
-                    </span>
-
-                    <span className="text-right font-semibold">
-                      ৳
-                      {Number(
-                        studio.securityDeposit
-                      ).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* BOOK BUTTON */}
               <Link
                 href={`/studios/${studio._id}/book`}
-                className="mt-6 flex w-full items-center justify-center rounded-full bg-primary px-5 py-3.5 text-sm font-bold text-primary-foreground transition-all hover:-translate-y-0.5 hover:bg-primary-hover sm:mt-7"
+                className="mt-6 flex min-h-12 w-full items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover"
               >
                 Book this studio
               </Link>
 
               <p className="mt-4 text-center text-xs leading-5 text-muted">
-                Choose your date and time to continue with
-                the booking.
+                Secure your creative space and start
+                producing.
               </p>
-            </aside>
-          </div>
+            </div>
+          </aside>
         </div>
-      </section>
+      </div>
     </main>
   );
 }

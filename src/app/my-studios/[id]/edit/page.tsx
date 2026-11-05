@@ -24,6 +24,7 @@ type Studio = {
   maxCapacity?: number;
   description: string;
   image: string;
+  gallery?: string[];
   amenities?: string[];
   hostName?: string;
   hostEmail?: string;
@@ -47,6 +48,7 @@ export default function EditStudioPage() {
     maxCapacity: "",
     description: "",
     image: "",
+    gallery: "",
     amenities: "",
   });
 
@@ -96,6 +98,9 @@ export default function EditStudioPage() {
               : "",
           description: studio.description || "",
           image: studio.image || "",
+          gallery: Array.isArray(studio.gallery)
+            ? studio.gallery.join("\n")
+            : "",
           amenities: Array.isArray(studio.amenities)
             ? studio.amenities.join(", ")
             : "",
@@ -105,7 +110,6 @@ export default function EditStudioPage() {
         setHostEmail(studio.hostEmail || "");
       } catch (error) {
         console.error("Failed to load studio:", error);
-
         toast.error("Failed to load studio.");
       } finally {
         setLoading(false);
@@ -136,7 +140,9 @@ export default function EditStudioPage() {
     event.preventDefault();
 
     const pricePerHour = Number(formData.pricePerHour);
-    const securityDeposit = Number(formData.securityDeposit);
+    const securityDeposit = Number(
+      formData.securityDeposit
+    );
     const maxCapacity = Number(formData.maxCapacity);
 
     if (!formData.name.trim()) {
@@ -175,7 +181,7 @@ export default function EditStudioPage() {
       maxCapacity < 1
     ) {
       toast.error(
-        "Please enter a valid maximum capacity of at least 1 guest."
+        "Please enter a valid maximum capacity."
       );
       return;
     }
@@ -193,6 +199,12 @@ export default function EditStudioPage() {
     setSaving(true);
 
     try {
+      const gallery = formData.gallery
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .slice(0, 10);
+
       const amenities = formData.amenities
         .split(",")
         .map((item) => item.trim())
@@ -214,6 +226,7 @@ export default function EditStudioPage() {
             maxCapacity,
             description: formData.description.trim(),
             image: formData.image.trim(),
+            gallery,
             amenities,
           }),
         }
@@ -395,6 +408,28 @@ export default function EditStudioPage() {
               className="w-full rounded-lg border bg-transparent px-4 py-3"
               required
             />
+          </div>
+
+          {/* Gallery */}
+          <div>
+            <label className="mb-2 block text-sm font-medium">
+              Studio Gallery
+            </label>
+
+            <textarea
+              name="gallery"
+              value={formData.gallery}
+              onChange={handleChange}
+              placeholder={`https://example.com/studio-1.jpg
+https://example.com/studio-2.jpg
+https://example.com/studio-3.jpg`}
+              rows={5}
+              className="w-full rounded-lg border bg-transparent px-4 py-3"
+            />
+
+            <p className="mt-1 text-xs text-gray-500">
+              One image URL per line. Maximum 10 images.
+            </p>
           </div>
 
           <div>

@@ -28,7 +28,10 @@ export default function Footer() {
 
           {/* Brand */}
           <div>
-            <Link href="/" className="inline-flex items-center gap-2">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2"
+            >
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-sm font-black text-primary-foreground">
                 S
               </span>
@@ -72,7 +75,7 @@ export default function Footer() {
               </Link>
 
               <Link
-                href="/about"
+                href="/about#how-it-works"
                 className="transition-colors hover:text-primary"
               >
                 How It Works
@@ -83,6 +86,13 @@ export default function Footer() {
                 className="transition-colors hover:text-primary"
               >
                 About Us
+              </Link>
+
+              <Link
+                href="/bookings"
+                className="transition-colors hover:text-primary"
+              >
+                My Bookings
               </Link>
             </div>
           </div>
@@ -138,8 +148,8 @@ export default function Footer() {
             </h3>
 
             <p className="mt-4 text-sm leading-6 text-muted">
-              Get new studio listings, creative tips, and StudioSpace updates
-              in your inbox.
+              Get new studio listings, creative tips, and StudioSpace
+              updates in your inbox.
             </p>
 
             <form
@@ -151,6 +161,7 @@ export default function Footer() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="Your email address"
+                aria-label="Email address"
                 className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-dark focus:border-primary"
               />
 
@@ -174,6 +185,7 @@ export default function Footer() {
           {/* Social Links */}
           <div className="flex items-center gap-3">
 
+            {/* Facebook */}
             <a
               href="https://www.facebook.com"
               target="_blank"
@@ -184,6 +196,7 @@ export default function Footer() {
               f
             </a>
 
+            {/* Instagram */}
             <a
               href="https://www.instagram.com"
               target="_blank"
@@ -194,6 +207,7 @@ export default function Footer() {
               ◎
             </a>
 
+            {/* X */}
             <a
               href="https://x.com"
               target="_blank"
@@ -204,6 +218,7 @@ export default function Footer() {
               𝕏
             </a>
 
+            {/* LinkedIn */}
             <a
               href="https://www.linkedin.com"
               target="_blank"
@@ -213,6 +228,7 @@ export default function Footer() {
             >
               in
             </a>
+
           </div>
         </div>
       </div>

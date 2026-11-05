@@ -16,7 +16,6 @@ export default function Navbar() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   // Theme state
-  // FIX: effect-এর ভিতরে setState করা হয়নি
   const [isLightTheme, setIsLightTheme] = useState(() => {
     if (typeof window === "undefined") {
       return false;
@@ -134,6 +133,8 @@ export default function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden items-center gap-6 md:flex">
+
+          {/* Home */}
           <Link
             href="/"
             className={navLinkClass("/")}
@@ -141,6 +142,7 @@ export default function Navbar() {
             Home
           </Link>
 
+          {/* Studios */}
           <Link
             href="/studios"
             className={navLinkClass("/studios")}
@@ -148,6 +150,23 @@ export default function Navbar() {
             Studios
           </Link>
 
+          {/* How It Works */}
+          <Link
+            href="/about#how-it-works"
+            className={navLinkClass("/about")}
+          >
+            How It Works
+          </Link>
+
+          {/* About Us */}
+          <Link
+            href="/about"
+            className={navLinkClass("/about")}
+          >
+            About Us
+          </Link>
+
+          {/* My Bookings */}
           <Link
             href="/bookings"
             className={navLinkClass("/bookings")}
@@ -178,6 +197,7 @@ export default function Navbar() {
             {isLightTheme ? "🌙" : "☀️"}
           </button>
 
+          {/* Authenticated User */}
           {user ? (
             <div
               ref={menuRef}
@@ -210,6 +230,7 @@ export default function Navbar() {
                   role="menu"
                   className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-border bg-background p-2 shadow-xl"
                 >
+                  {/* User Information */}
                   <div className="border-b border-border px-3 py-3">
                     <p className="truncate text-sm font-bold">
                       {user.name || "User"}
@@ -220,6 +241,7 @@ export default function Navbar() {
                     </p>
                   </div>
 
+                  {/* Dashboard */}
                   <Link
                     href="/dashboard"
                     onClick={() => setMenuOpen(false)}
@@ -229,6 +251,27 @@ export default function Navbar() {
                     Dashboard
                   </Link>
 
+                  {/* Add New Studio */}
+                  <Link
+                    href="/add-studio"
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-surface-hover"
+                    role="menuitem"
+                  >
+                    Add New Studio
+                  </Link>
+
+                  {/* My Studio Listings */}
+                  <Link
+                    href="/my-studios"
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-xl px-3 py-2 text-sm font-medium transition hover:bg-surface-hover"
+                    role="menuitem"
+                  >
+                    My Studio Listings
+                  </Link>
+
+                  {/* My Bookings */}
                   <Link
                     href="/bookings"
                     onClick={() => setMenuOpen(false)}
@@ -238,6 +281,7 @@ export default function Navbar() {
                     My Bookings
                   </Link>
 
+                  {/* Logout */}
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -251,7 +295,10 @@ export default function Navbar() {
               )}
             </div>
           ) : (
+            /* Unauthenticated User */
             <div className="hidden items-center gap-2 sm:flex">
+
+              {/* Login */}
               <Link
                 href="/auth/login"
                 className="rounded-full px-4 py-2 text-sm font-semibold transition hover:bg-surface-hover"
@@ -259,6 +306,7 @@ export default function Navbar() {
                 Login
               </Link>
 
+              {/* Register */}
               <Link
                 href="/auth/signup"
                 className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover"
@@ -273,6 +321,8 @@ export default function Navbar() {
       {/* Mobile Navigation */}
       <div className="border-t border-border md:hidden">
         <nav className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-2 sm:px-6">
+
+          {/* Home */}
           <Link
             href="/"
             className={mobileLinkClass("/")}
@@ -280,6 +330,7 @@ export default function Navbar() {
             Home
           </Link>
 
+          {/* Studios */}
           <Link
             href="/studios"
             className={mobileLinkClass("/studios")}
@@ -287,6 +338,23 @@ export default function Navbar() {
             Studios
           </Link>
 
+          {/* How It Works */}
+          <Link
+            href="/about#how-it-works"
+            className={mobileLinkClass("/about")}
+          >
+            How It Works
+          </Link>
+
+          {/* About */}
+          <Link
+            href="/about"
+            className={mobileLinkClass("/about")}
+          >
+            About
+          </Link>
+
+          {/* Bookings */}
           <Link
             href="/bookings"
             className={mobileLinkClass("/bookings")}
@@ -294,6 +362,7 @@ export default function Navbar() {
             Bookings
           </Link>
 
+          {/* Login/Register */}
           {!user && (
             <>
               <Link
