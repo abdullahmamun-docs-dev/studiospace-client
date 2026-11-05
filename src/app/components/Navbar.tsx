@@ -13,14 +13,18 @@ export default function Navbar() {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [isLightTheme, setIsLightTheme] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Load saved theme
   useEffect(() => {
     const savedTheme = localStorage.getItem("studiospace-theme");
+    const light = savedTheme === "light";
 
-    if (savedTheme === "light") {
+    setIsLightTheme(light);
+
+    if (light) {
       document.documentElement.classList.add("light");
     } else {
       document.documentElement.classList.remove("light");
@@ -45,15 +49,32 @@ export default function Navbar() {
     };
   }, []);
 
+  // Close profile dropdown with Escape key
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
+
   function toggleTheme() {
     const html = document.documentElement;
 
     if (html.classList.contains("light")) {
       html.classList.remove("light");
       localStorage.setItem("studiospace-theme", "dark");
+      setIsLightTheme(false);
     } else {
       html.classList.add("light");
       localStorage.setItem("studiospace-theme", "light");
+      setIsLightTheme(true);
     }
   }
 
@@ -138,14 +159,19 @@ export default function Navbar() {
           <button
             type="button"
             onClick={toggleTheme}
-            aria-label="Toggle theme"
-            title="Toggle theme"
+            aria-label={
+              isLightTheme
+                ? "Switch to dark theme"
+                : "Switch to light theme"
+            }
+            title={
+              isLightTheme
+                ? "Switch to dark theme"
+                : "Switch to light theme"
+            }
             className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-border text-base transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:bg-surface-hover sm:h-10 sm:w-10"
           >
-            {typeof document !== "undefined" &&
-            document.documentElement.classList.contains("light")
-              ? "🌙"
-              : "☀️"}
+            {isLightTheme ? "🌙" : "☀️"}
           </button>
 
           {user ? (
@@ -157,6 +183,7 @@ export default function Navbar() {
                   onClick={() => setMenuOpen((prev) => !prev)}
                   aria-expanded={menuOpen}
                   aria-haspopup="menu"
+                  aria-label="Open profile menu"
                   className="flex cursor-pointer items-center gap-2 rounded-full border border-border px-2 py-1.5 transition-all duration-200 hover:border-primary hover:bg-surface-hover sm:px-3"
                 >
                   {user.image ? (
@@ -166,7 +193,10 @@ export default function Navbar() {
                       className="h-8 w-8 rounded-full object-cover"
                     />
                   ) : (
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                    <span
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
+                      aria-hidden="true"
+                    >
                       {(user.name || user.email || "U")
                         .charAt(0)
                         .toUpperCase()}
@@ -177,7 +207,10 @@ export default function Navbar() {
                     {user.name || user.email}
                   </span>
 
-                  <span className="text-xs text-muted" aria-hidden="true">
+                  <span
+                    className="text-xs text-muted"
+                    aria-hidden="true"
+                  >
                     {menuOpen ? "▲" : "▼"}
                   </span>
                 </button>
@@ -187,6 +220,7 @@ export default function Navbar() {
                   <div
                     className="absolute right-0 top-12 z-50 w-64 rounded-2xl border border-border bg-surface p-2 shadow-2xl"
                     role="menu"
+                    aria-label="Profile menu"
                   >
                     {/* User Info */}
                     <div className="border-b border-border px-3 py-3">
