@@ -66,7 +66,9 @@ export default function LoginPage() {
       await authClient.signIn.social({
         provider: "google",
         callbackURL:
-          "https://studiospace-client-lemon.vercel.app/",
+          typeof window !== "undefined"
+            ? window.location.origin
+            : "https://studiospace-client-lemon.vercel.app",
       });
     } catch (error) {
       console.error("Google login failed:", error);
