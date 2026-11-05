@@ -1,4 +1,3 @@
-
 "use client";
 
 import Image from "next/image";
@@ -15,11 +14,8 @@ type Studio = {
   name: string;
   category: string;
   location: string;
-
-  // Support both possible backend field names
   pricePerHour?: number;
   price?: number;
-
   securityDeposit?: number;
   maxCapacity?: number;
   image?: string;
@@ -44,6 +40,16 @@ type BookingResponse = {
   };
 };
 
+function getToday() {
+  const today = new Date();
+
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function BookStudioPage() {
   const params = useParams();
   const router = useRouter();
@@ -53,6 +59,7 @@ export default function BookStudioPage() {
   const [studio, setStudio] = useState<Studio | null>(null);
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
@@ -64,10 +71,12 @@ export default function BookStudioPage() {
   | Load studio
   |--------------------------------------------------------------------------
   */
+
   useEffect(() => {
     async function loadStudio() {
       try {
         setLoading(true);
+        setLoadError("");
 
         const response = await apiFetch(`/api/studios/${studioId}`, {
           cache: "no-store",
@@ -92,13 +101,16 @@ export default function BookStudioPage() {
       } catch (error) {
         console.error("Failed to load studio:", error);
 
-        toast.error(
+        const message =
           error instanceof TypeError
             ? "Cannot connect to the server. Please make sure the backend is running."
             : error instanceof Error
               ? error.message
-              : "Failed to load studio."
-        );
+              : "Failed to load studio.";
+
+        setLoadError(message);
+
+        toast.error(message);
       } finally {
         setLoading(false);
       }
@@ -114,6 +126,7 @@ export default function BookStudioPage() {
   | Capacity
   |--------------------------------------------------------------------------
   */
+
   const storedCapacity = Number(studio?.maxCapacity);
 
   const maxCapacity =
@@ -133,6 +146,7 @@ export default function BookStudioPage() {
   | Booking duration
   |--------------------------------------------------------------------------
   */
+
   const duration = useMemo(() => {
     if (!startTime || !endTime) {
       return 0;
@@ -161,7 +175,6 @@ export default function BookStudioPage() {
   |--------------------------------------------------------------------------
   */
 
-  // Supports both pricePerHour and price from backend.
   const hourlyRate = Number(
     studio?.pricePerHour ?? studio?.price ?? 0
   );
@@ -178,24 +191,30 @@ export default function BookStudioPage() {
 
   /*
   |--------------------------------------------------------------------------
-  | Today's date
+  | Form validation
   |--------------------------------------------------------------------------
   */
-  function getToday() {
-    const today = new Date();
 
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
+  const dateIsValid = Boolean(date) && date >= getToday();
 
-    return `${year}-${month}-${day}`;
-  }
+  const timeIsValid =
+    Boolean(startTime) &&
+    Boolean(endTime) &&
+    duration > 0;
+
+  const formIsValid =
+    Boolean(studio) &&
+    dateIsValid &&
+    timeIsValid &&
+    validGuestCount &&
+    hourlyRate > 0;
 
   /*
   |--------------------------------------------------------------------------
   | Submit booking
   |--------------------------------------------------------------------------
   */
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
@@ -225,15 +244,15 @@ export default function BookStudioPage() {
       return;
     }
 
+    if (duration <= 0) {
+      toast.error("End time must be later than start time.");
+      return;
+    }
+
     if (!validGuestCount) {
       toast.error(
         `Guest count must be between 1 and ${maxCapacity}.`
       );
-      return;
-    }
-
-    if (duration <= 0) {
-      toast.error("End time must be later than start time.");
       return;
     }
 
@@ -259,8 +278,6 @@ export default function BookStudioPage() {
           startTime,
           endTime,
           guests: guestCount,
-
-          // Send calculated values as well.
           totalHours: duration,
           price: estimatedPrice,
           deposit: securityDeposit,
@@ -313,6 +330,7 @@ export default function BookStudioPage() {
   | Loading state
   |--------------------------------------------------------------------------
   */
+
   if (loading) {
     return (
       <main className="min-h-screen bg-background px-4 py-10 text-foreground sm:px-6 sm:py-14">
@@ -337,9 +355,55 @@ export default function BookStudioPage() {
 
   /*
   |--------------------------------------------------------------------------
+  | Studio loading error
+  |--------------------------------------------------------------------------
+  */
+
+  if (loadError && !studio) {
+    return (
+      <main className="min-h-screen bg-background px-4 py-16 text-foreground sm:px-6">
+        <div className="container-studio">
+          <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-surface p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 text-xl font-bold text-red-500">
+              !
+            </div>
+
+            <h1 className="mt-5 text-2xl font-bold">
+              Unable to load studio
+            </h1>
+
+            <p className="mt-3 text-sm leading-6 text-muted">
+              {loadError}
+            </p>
+
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="studio-primary-button"
+              >
+                Try Again
+              </button>
+
+              <Link
+                href="/studios"
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-border px-5 py-3 text-sm font-bold transition hover:bg-surface-hover"
+              >
+                Back to Studios
+              </Link>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  /*
+  |--------------------------------------------------------------------------
   | Studio not found
   |--------------------------------------------------------------------------
   */
+
   if (!studio) {
     return (
       <main className="min-h-screen bg-background px-4 py-16 text-foreground sm:px-6">
@@ -350,8 +414,7 @@ export default function BookStudioPage() {
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-muted">
-              We could not find the studio you are trying to
-              book.
+              We could not find the studio you are trying to book.
             </p>
 
             <Link
@@ -528,6 +591,12 @@ export default function BookStudioPage() {
                   className="min-h-11 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                   required
                 />
+
+                {date && !dateIsValid ? (
+                  <p className="mt-2 text-sm font-medium text-red-500">
+                    Please choose today or a future date.
+                  </p>
+                ) : null}
               </div>
 
               {/* Time */}
@@ -576,9 +645,7 @@ export default function BookStudioPage() {
               </div>
 
               {/* Invalid time message */}
-              {startTime &&
-              endTime &&
-              duration <= 0 ? (
+              {startTime && endTime && duration <= 0 ? (
                 <p className="text-sm font-medium text-red-500">
                   End time must be later than start time.
                 </p>
@@ -611,11 +678,10 @@ export default function BookStudioPage() {
                   Maximum {maxCapacity} guests
                 </p>
 
-                {guests &&
-                Number(guests) > maxCapacity ? (
+                {guests && !validGuestCount ? (
                   <p className="mt-2 text-sm font-medium text-red-500">
-                    This studio can accommodate up to{" "}
-                    {maxCapacity} guests.
+                    Guest count must be between 1 and{" "}
+                    {maxCapacity}.
                   </p>
                 ) : null}
               </div>
@@ -673,11 +739,7 @@ export default function BookStudioPage() {
               <button
                 type="submit"
                 disabled={
-                  bookingLoading ||
-                  !validGuestCount ||
-                  duration <= 0 ||
-                  !date ||
-                  hourlyRate <= 0
+                  bookingLoading || !formIsValid
                 }
                 className="studio-primary-button min-h-12 w-full disabled:cursor-not-allowed disabled:opacity-50"
               >
